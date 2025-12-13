@@ -1,6 +1,7 @@
 "use client";
 
 import { useState} from "react";
+import GameCanvas from "./GameCanvas";  
 
 export default function GamePanel() {
   const [visible, setVisible] = useState(true);
@@ -23,7 +24,7 @@ export default function GamePanel() {
         </h3>
 
         <div className="h-48 bg-black border border-zinc-700 rounded-md flex items-center justify-center text-gray-500">
-          Game goes here
+          <GameCanvas />
         </div>
 
         <button className="mt-4 w-full bg-white text-black py-2 rounded-md text-sm">
