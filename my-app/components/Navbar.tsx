@@ -1,14 +1,23 @@
 export default function Navbar() {
-    return (
-        <nav className="fixed top-0 left-0 w-full bg-black border-b border-zinc-800 px-8 py-4 z-40">
-            <div className="flex justify-between items-center">
-                <span className="font-bold text-white">Manas Kumar</span>
-                <div className="space-x-6 text-sm text-gray-400">
-                    <a href="#about" className="hover:text-white">About</a>
-                    <a href="#projects" className="hover:text-white">Projects</a>
-                    <a href="#skills" className="hover:text-white">Skills</a>
-                </div> 
-            </div>
-        </nav>
-    );
+  return (
+    <nav className="fixed top-0 left-0 w-full h-[var(--navbar-height)] bg-black border-b border-zinc-800 z-40">
+      <div className="h-full px-8 flex items-center justify-between">
+        {/* Left: Name */}
+        <span className="font-bold text-white">Manas Kumar</span>
+
+        {/* Right: Links */}
+        <div className="flex space-x-6 text-sm text-gray-400">
+          <a href="#about" className="hover:text-white">
+            About
+          </a>
+          <a href="#skills" className="hover:text-white">
+            Skills
+          </a>
+          <a href="#projects" className="hover:text-white">
+            Projects
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
 }

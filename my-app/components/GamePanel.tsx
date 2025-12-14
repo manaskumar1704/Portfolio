@@ -1,37 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import GameCanvas from "./GameCanvas";  
+import GameCanvas from "./GameCanvas";
 
 export default function GamePanel() {
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState<boolean>(true);
 
   return (
-    <>
-    {/* Toggle Button */}
-    <button
-      onClick={() => setVisible(!visible)}
-      className="fixed top-6 right-6 bg-white text-black px-4 py-2 rounded-md text-sm"
+    <div
+      className="fixed right-6 z-50"
+      style={{ top: "calc(var(--navbar-height) + 2rem)" }}
     >
-      {visible ? "Hide Game Panel" : "Show Game Panel"}
-    </button>
-    
-    {/* Game Panel */}
-    {visible && (
-      <div className="fixed top-16 right-6 w-80 h-96 bg-zinc-900 border border-zinc-700 rounded-x1 p-4">
-        <h3 className="text-lg font-semibold mb-2">
-          Mini Game
-        </h3>
+      {/* Toggle Button */}
+      <button
+        onClick={() => setVisible(!visible)}
+        className="mb-2 w-80 bg-white text-black px-4 py-2 rounded-md text-sm text-center transition-all duration-200"
+      >
+        {visible ? "Hide Game" : "Show Game"}
+      </button>
 
-        <div className="h-48 bg-black border border-zinc-700 rounded-md flex items-center justify-center text-gray-500">
+      {/* Game Window */}
+      {visible && (
+        <div className="w-80 bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-4">
+          <h3 className="text-lg font-semibold">Mini Game</h3>
+
           <GameCanvas />
-        </div>
 
-        <button className="mt-4 w-full bg-white text-black py-2 rounded-md text-sm">
-          Play Again
-        </button>
-      </div>
-    )}
-    </>
+          <button className="w-full bg-white text-black py-2 rounded-md text-sm">
+            Play Again
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
