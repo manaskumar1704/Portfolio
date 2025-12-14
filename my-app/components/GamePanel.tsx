@@ -1,6 +1,6 @@
 "use client";
 
-import { useState} from "react";
+import { useState } from "react";
 import GameCanvas from "./GameCanvas";  
 
 export default function GamePanel() {
