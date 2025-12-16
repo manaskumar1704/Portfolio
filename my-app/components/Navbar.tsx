@@ -6,7 +6,7 @@ export default function Navbar() {
         <span className="font-bold text-white">Manas Kumar</span>
 
         {/* Right: Links */}
-        <div className="flex space-x-6 text-sm text-gray-400">
+        <div className="hidden md:flex space-x-6 text-sm text-gray-400">
           <a href="#about" className="hover:text-white">
             About
           </a>

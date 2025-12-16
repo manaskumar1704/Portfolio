@@ -8,7 +8,7 @@ export default function GamePanel() {
 
   return (
     <div
-      className="fixed right-6 z-50"
+      className="hidden md:static md:mt-12 lg:fixed lg:right-6 lg:z-50"
       style={{ top: "calc(var(--navbar-height) + 2rem)" }}
     >
       {/* Toggle Button */}
