@@ -7,7 +7,7 @@ export default function HomePage() {
       <Navbar />
 
       <main
-        className="min-h-screen bg-black text-white px-4 md:px-8"
+        className="bg-black text-white px-4 md:px-8 pb-24"
         style={{ paddingTop: "calc(var(--navbar-height) + 2.5rem)" }}
       >
         <div className="max-w-4xl"> 
@@ -31,9 +31,38 @@ export default function HomePage() {
             Test
             {/* Add projects with brief description here */}
           </Section>
-        
-        </div>
 
+          <Section id="contact" title="Contact">
+            <p className="mb-4">I am always open to discussing new opportunities, projects, internships and potential collaborations.</p>
+
+            <ul className="space-y-2">
+              <li>
+                📧{" "}
+                <a href="mailto:manaskumar1704@gmail.com" className="underline hover:text-white">
+                  manaskumar1704@gmail.com
+                </a>
+              </li>
+
+              <li>
+                💻{" "}
+                <a href="https://github.com/manaskumar1704"target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
+                  GitHub
+                </a>
+              </li>
+
+              <li>
+                🔗{" "}
+              <a href="https://linkedin.com/in/manas-kumar-372193322" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
+                LinkedIn
+              </a>
+              </li>
+            </ul>
+
+            <a href="/Manas_Kumar_Resume.pdf" download className="inline-block mt-6 bg-white text-black px-6 py-2 rounded-md text-sm hover:bg-gray-200">
+              Click here to download my Resume
+            </a>
+          </Section>
+        </div>
       </main>
     </>
   );
