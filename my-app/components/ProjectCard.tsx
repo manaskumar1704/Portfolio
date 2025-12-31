@@ -47,7 +47,7 @@ export default function ProjectCard({ title, description, tags, repoLink, demoLi
                     {demoLink && (
                         <Button size="sm" asChild className="gap-2">
                             <a href={demoLink} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink size={16} /> Live Demo
+                                <ExternalLink size={16} /> Launch App
                             </a>
                         </Button>
                     )}

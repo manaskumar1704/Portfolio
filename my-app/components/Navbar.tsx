@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Menu, X, Github, Linkedin, Mail } from "lucide-react";
-import { Button } from "./ui/button";
+import { Menu, X, Github, Linkedin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ThemeToggle from "./ThemeToggle";
 
@@ -67,9 +66,6 @@ export default function Navbar() {
             <a href="https://github.com/manaskumar1704" target="_blank" className="text-muted-foreground hover:text-foreground transition-colors"><Github size={20} /></a>
             <a href="https://linkedin.com/in/manas-kumar-372193322" target="_blank" className="text-muted-foreground hover:text-foreground transition-colors"><Linkedin size={20} /></a>
           </div>
-          <Button size="sm" className="rounded-full px-6" asChild>
-            <Link href="#contact">Hire Me</Link>
-          </Button>
         </div>
 
         {/* Mobile Toggle */}
@@ -106,7 +102,6 @@ export default function Navbar() {
                 <ThemeToggle />
                 <a href="https://github.com/manaskumar1704" target="_blank" className="p-2 bg-secondary rounded-full"><Github size={20} /></a>
                 <a href="https://linkedin.com/in/manas-kumar-372193322" target="_blank" className="p-2 bg-secondary rounded-full"><Linkedin size={20} /></a>
-                <a href="mailto:manaskumar1704@gmail.com" className="p-2 bg-secondary rounded-full"><Mail size={20} /></a>
               </div>
             </div>
           </motion.div>

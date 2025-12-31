@@ -19,30 +19,23 @@ import {
   SiMysql,
   SiMongodb,
 } from "react-icons/si";
-import { FaJava } from "react-icons/fa";
-import { ArrowRight, Download } from "lucide-react";
+import { FaJava, FaHammer } from "react-icons/fa";
+import { ArrowRight, Download, Phone, Github, Linkedin, Mail } from "lucide-react";
 
 const projects = [
   {
+    title: "ChainForge 2.0",
+    description: "Cryptographically prove the existence of digital files.",
+    tags: ["React", "Ethereum", "Crypto", "Web3"],
+    repoLink: "https://github.com/manaskumar1704/ChainForge2.0",
+    demoLink: "https://chain-forge2-0.vercel.app/",
+  },
+  {
     title: "Portfolio Website",
-    description: "My personal digital garden showcasing my work and journey. Built with Next.js 15, Tailwind V4, and Framer Motion.",
+    description: "My personal digital garden. Built with Next.js 15, Tailwind V4, and Framer Motion.",
     tags: ["Next.js", "React", "Tailwind CSS", "Framer Motion"],
     repoLink: "https://github.com/manaskumar1704/Portfolio",
     demoLink: "https://manas.dev",
-  },
-  {
-    title: "E-Commerce Dashboard",
-    description: "A comprehensive admin dashboard for managing products, orders, and analytics. Features real-time data updates.",
-    tags: ["React", "Node.js", "MongoDB", "Chart.js"],
-    repoLink: "#",
-    demoLink: "#",
-  },
-  {
-    title: "Smart Contract Lottery",
-    description: "Decentralized lottery application allowing users to enter with ETH and picking a random winner using Chainlink VRF.",
-    tags: ["Solidity", "Hardhat", "Ethers.js", "Next.js"],
-    repoLink: "#",
-    demoLink: "#",
   },
 ];
 
@@ -84,7 +77,7 @@ export default function HomePage() {
             <motion.h1 variants={fadeInUp} className="text-5xl md:text-7xl font-extrabold tracking-tight">
               Hi, I&apos;m <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">Manas</span>
               <br />
-              <span className="text-foreground/80">I build things for the web.</span>
+              <span className="text-foreground/80">I build things.</span>
             </motion.h1>
 
             <motion.p variants={fadeInUp} className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
@@ -120,14 +113,14 @@ export default function HomePage() {
               <h2 className="text-3xl font-bold flex items-center gap-3">
                 <span className="text-primary font-mono text-xl">01.</span> About Me
               </h2>
-              <div className="glass-card p-8 rounded-2xl space-y-4 text-muted-foreground leading-relaxed">
+              <div className="glass-card p-8 rounded-2xl space-y-4 text-muted-foreground leading-relaxed border-l-4 border-primary/50">
                 <p>
-                  I am a dedicated Computer Science undergraduate with a passion for leveraging technology to solve real-world problems.
-                  I enjoy the process of creating, breaking, and rebuilding things in the pursuit of learning and innovation.
+                  I&apos;m a Computer Science undergrad who turns caffeine into code and ambitious ideas into digital reality.
+                  I thrive on the thrill of building systems, breaking them (occasionally on purpose), and rebuilding them stronger.
                 </p>
                 <p>
-                  My journey in web development started with simple static pages and has grown into building full-stack applications
-                  using modern technologies like Next.js and Tailwind CSS.
+                  What started as tinkering with static HTML has evolved into crafting robust full-stack applications.
+                  I&apos;m constantly chasing the perfect balance between clean aesthetics and functionality.
                 </p>
               </div>
             </div>
@@ -150,25 +143,26 @@ export default function HomePage() {
             <div className="space-y-12">
               {/* Languages */}
               <div>
-                <h3 className="text-xl font-semibold mb-6 flex items-center gap-2 text-foreground/80">Languages</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-8 p-8 glass rounded-2xl">
-                  <Skill icon={<SiJavascript />} label="JavaScript" className="hover:text-[#F7DF1E] transition-colors duration-300" />
-                  <Skill icon={<SiTypescript />} label="TypeScript" className="hover:text-[#3178C6] transition-colors duration-300" />
-                  <Skill icon={<SiPython />} label="Python" className="hover:text-[#3776AB] transition-colors duration-300" />
-                  <Skill icon={<SiSolidity />} label="Solidity" className="hover:text-[#363636] dark:hover:text-[#FFFFFF] transition-colors duration-300" />
-                  <Skill icon={<SiMysql />} label="SQL" className="hover:text-[#4479A1] transition-colors duration-300" />
-                  <Skill icon={<FaJava />} label="Java" className="hover:text-[#007396] transition-colors duration-300" />
+                <h3 className="text-xl font-semibold mb-6 flex items-center gap-2 text-foreground/80 pl-2 border-l-2 border-primary">Languages</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-8 p-8 glass rounded-2xl border-t border-white/5">
+                  <Skill icon={<SiJavascript />} label="JavaScript" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<SiTypescript />} label="TypeScript" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<SiPython />} label="Python" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<SiSolidity />} label="Solidity" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<SiMysql />} label="SQL" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<FaJava />} label="Java" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
                 </div>
               </div>
 
               {/* Frameworks & Tools */}
               <div>
-                <h3 className="text-xl font-semibold mb-6 flex items-center gap-2 text-foreground/80">Frameworks & Tools</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-8 p-8 glass rounded-2xl">
-                  <Skill icon={<SiReact />} label="React" className="hover:text-[#61DAFB] transition-colors duration-300" />
-                  <Skill icon={<SiNextdotjs />} label="Next.js" className="hover:text-foreground transition-colors duration-300" />
-                  <Skill icon={<SiTailwindcss />} label="Tailwind" className="hover:text-[#06B6D4] transition-colors duration-300" />
-                  <Skill icon={<SiMongodb />} label="MongoDB" className="hover:text-[#47A248] transition-colors duration-300" />
+                <h3 className="text-xl font-semibold mb-6 flex items-center gap-2 text-foreground/80 pl-2 border-l-2 border-primary">Frameworks & Tools</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-8 p-8 glass rounded-2xl border-t border-white/5">
+                  <Skill icon={<SiReact />} label="React" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<SiNextdotjs />} label="Next.js" className="hover:text-foreground dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<SiTailwindcss />} label="Tailwind" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<SiMongodb />} label="MongoDB" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
+                  <Skill icon={<FaHammer />} label="Hardhat" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300 transform hover:scale-110" />
                 </div>
               </div>
             </div>
@@ -212,6 +206,12 @@ export default function HomePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
+                {
+                  name: "Build Your Own X",
+                  url: "https://github.com/codecrafters-io/build-your-own-x",
+                  category: "Learning",
+                  description: "Master programming by recreating your favorite technologies from scratch.",
+                },
                 {
                   name: "Overleaf",
                   url: "https://www.overleaf.com/",
@@ -274,16 +274,37 @@ export default function HomePage() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="glass-card p-12 rounded-3xl"
+            className="glass-card p-12 rounded-3xl relative overflow-hidden group"
           >
-            <p className="text-primary font-mono mb-4 text-lg">05. What&apos;s Next?</p>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Get In Touch</h2>
-            <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-              I&apos;m currently looking for new opportunities. Whether you have a question or just want to say hi, my inbox is always open.
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            <p className="text-primary font-mono mb-4 text-lg relative z-10">05. What&apos;s Next?</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 relative z-10">Get In Touch</h2>
+            <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto relative z-10">
+              I&apos;m currently looking for new opportunities. Whether you have a question or just want to say hi, I&apos;ll try my best to get back to you!
             </p>
-            <Button size="lg" className="h-12 px-8 text-lg rounded-full" asChild>
-              <a href="mailto:manaskumar1704@gmail.com">Say Hello</a>
-            </Button>
+
+            <div className="flex flex-col items-center gap-6 relative z-10">
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group/email">
+                  <Mail size={20} className="group-hover/email:scale-110 transition-transform" />
+                  <a href="mailto:manaskumar1704@gmail.com" className="text-xl font-medium">manaskumar1704@gmail.com</a>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group/phone">
+                  <Phone size={20} className="group-hover/phone:scale-110 transition-transform" />
+                  <span className="text-xl font-medium">+91 8796955365</span>
+                </div>
+              </div>
+
+              <div className="flex gap-6 mt-6">
+                <a href="https://github.com/manaskumar1704" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors transform hover:scale-110">
+                  <Github size={32} />
+                </a>
+                <a href="https://linkedin.com/in/manas-kumar-372193322" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-[#0077b5] transition-colors transform hover:scale-110">
+                  <Linkedin size={32} />
+                </a>
+              </div>
+            </div>
           </motion.div>
         </section>
 
