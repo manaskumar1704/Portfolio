@@ -2,8 +2,6 @@
 
 A personal digital garden and portfolio showcasing my projects, skills, and resources. Built with a focus on performance, accessibility, and modern aesthetics using **Next.js 15**, **Tailwind CSS V4**, and **Shadcn UI**.
 
-![Portfolio Preview](./public/preview.png)
-
 ## 🚀 Tech Stack
 
 - **Framework:** [Next.js 15](https://nextjs.org/) (App Router, TurboPack)
