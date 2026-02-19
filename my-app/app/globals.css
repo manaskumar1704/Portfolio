@@ -5,16 +5,33 @@
 
 :root {
   --navbar-height: 4rem;
-  --radius: 0.75rem;
-  
-  /* Light Mode (Clean, Professional) */
+  --radius: 0.5rem;
+  /* Sharper corners for Aizen aesthetic */
+
+  /* CORE PALETTE - Defined in Oklch for consistency */
+  /* Deepest Obsidian: #050507 -> oklch(0.02 0.005 285) approx */
+  --obsidian: oklch(0.10 0.01 270);
+
+  /* Electric Violet (Reiatsu): #7c3aed -> oklch(0.55 0.25 275) */
+  --reiatsu: oklch(0.55 0.25 275);
+
+  /* Glowing Cyan (Hogyoku): #06b6d4 -> oklch(0.75 0.18 200) */
+  --hogyoku: oklch(0.75 0.18 200);
+
+  /* Text Colors */
+  --text-primary: oklch(0.96 0 0);
+  /* Off-white */
+  --text-secondary: oklch(0.70 0.02 270);
+  /* Muted Gray */
+
+  /* Base Light Mode (Fallback - though we should force dark for this design) */
   --background: oklch(0.985 0.002 247.839);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
+  --primary: var(--reiatsu);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
@@ -25,13 +42,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
-  
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --ring: var(--reiatsu);
 
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
@@ -46,8 +57,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-serif), serif;
+  --font-mono: var(--font-mono), monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -56,11 +67,7 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -77,6 +84,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  --color-reiatsu: var(--reiatsu);
+  --color-hogyoku: var(--hogyoku);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -87,70 +98,110 @@
 }
 
 .dark {
-  /* Premium Dark Theme */
-  --background: oklch(0.12 0.01 285); /* Deepest Onyx */
-  --foreground: oklch(0.98 0 0);
-  
-  /* Cards with slight elevation/separation */
-  --card: oklch(0.15 0.01 285); 
-  --card-foreground: oklch(0.98 0 0);
-  
-  --popover: oklch(0.15 0.01 285);
-  --popover-foreground: oklch(0.98 0 0);
-  
-  /* Vibrant Primary - Electric Violet/Indigo */
-  --primary: oklch(0.65 0.2 275);
+  /* AIZEN AESTHETIC - SOPHISTICATED AMBITION */
+  --background: oklch(0.05 0.01 280);
+  /* Deepest Obsidian - nearly black with slight purple tint */
+  --foreground: var(--text-primary);
+
+  /* Cards: Glass-like obsidian shards */
+  --card: oklch(0.10 0.015 280);
+  --card-foreground: var(--text-primary);
+
+  --popover: oklch(0.08 0.015 280);
+  --popover-foreground: var(--text-primary);
+
+  /* Primary: Electric Violet */
+  --primary: var(--reiatsu);
   --primary-foreground: oklch(0.98 0 0);
-  
-  /* Muted elements */
-  --secondary: oklch(0.20 0.015 285);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.20 0.015 285);
-  --muted-foreground: oklch(0.70 0.02 285);
-  
+
+  /* Secondary: Muted cool darks */
+  --secondary: oklch(0.15 0.03 280);
+  --secondary-foreground: var(--text-primary);
+
+  /* Muted Text */
+  --muted: oklch(0.12 0.02 280);
+  --muted-foreground: var(--text-secondary);
+
   /* Accents */
-  --accent: oklch(0.25 0.02 285);
-  --accent-foreground: oklch(0.98 0 0);
-  
+  --accent: var(--hogyoku);
+  --accent-foreground: oklch(0.1 0.01 280);
+
   --destructive: oklch(0.6 0.2 20);
-  --border: oklch(0.25 0.01 285);
-  --input: oklch(0.25 0.01 285);
-  --ring: oklch(0.65 0.2 275);
-  
-  --chart-1: oklch(0.65 0.2 275);
-  --chart-2: oklch(0.55 0.2 220);
-  --chart-3: oklch(0.60 0.2 320);
-  --chart-4: oklch(0.70 0.15 180);
-  --chart-5: oklch(0.75 0.15 45);
-  
-  --sidebar: oklch(0.13 0.01 285);
-  --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.65 0.2 275);
+  --border: oklch(0.20 0.05 275);
+  /* Subtle purple borders */
+  --input: oklch(0.15 0.03 275);
+  --ring: var(--reiatsu);
+
+  --sidebar: oklch(0.06 0.01 280);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--reiatsu);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.20 0.015 285);
-  --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.25 0.01 285);
-  --sidebar-ring: oklch(0.65 0.2 275);
+  --sidebar-accent: oklch(0.15 0.03 280);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: oklch(0.20 0.05 275);
+  --sidebar-ring: var(--reiatsu);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body, html {
+
+  body,
+  html {
     @apply h-full antialiased;
   }
+
   body {
-    @apply bg-background text-foreground transition-colors duration-300;
+    @apply bg-background text-foreground transition-colors duration-500 overflow-x-hidden;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif tracking-tight text-white;
   }
 }
 
 @layer utilities {
-  .glass {
-    @apply backdrop-blur-md bg-background/70 border border-white/10 shadow-sm;
+
+  /* Glassmorphism Utilities */
+  .glass-panel {
+    @apply backdrop-blur-xl bg-black/40 border border-white/5 shadow-xl;
   }
+
   .glass-card {
-    @apply backdrop-blur-xl bg-card/60 border border-white/5 shadow-md hover:bg-card/70 transition-all duration-300;
+    @apply backdrop-blur-md bg-white/[0.03] border border-white/[0.08] shadow-lg transition-all duration-500 ease-out;
+  }
+
+  .glass-card:hover {
+    @apply bg-white/[0.06] border-reiatsu/40 shadow-[0_0_30px_-5px_var(--reiatsu)];
+    transform: translateY(-2px);
+  }
+
+  /* Text Glows */
+  .text-glow {
+    text-shadow: 0 0 20px var(--reiatsu);
+  }
+
+  .text-glow-cyan {
+    text-shadow: 0 0 20px var(--hogyoku);
+  }
+
+  /* Utility to hide scrollbar but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 }
 
