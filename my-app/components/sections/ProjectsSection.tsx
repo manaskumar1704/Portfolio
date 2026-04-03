@@ -1,101 +1,123 @@
 "use client"
 
-import { GlassCard } from "../ui/GlassCard"
-import { ExternalLink, Github } from "lucide-react"
+import { motion } from "framer-motion"
+import { ArrowRight } from "lucide-react"
 
 const projects = [
     {
-        title: "Project Aizen",
-        description: "An immersive developer portfolio pushing the boundaries of web aesthetics. Built with Next.js 14, Framer Motion, and Tailwind CSS. Features deep glassmorphism and custom design tokens.",
-        tags: ["Next.js", "React", "TypeScript", "Tailwind"],
-        image: "/project-1.jpg", // Placeholder
-        demoLink: "#",
-        codeLink: "#"
+        title: "NEURAL ENGINE v2",
+        description: "Real-time distributed computation for edge-AI rendering.",
+        tags: ["SYSTEMS", "RUST"],
+        year: "2024",
+        role: "LEAD ENGINEER"
     },
     {
-        title: "Ether Sanctum",
-        description: "A decentralized voting application built on Ethereum. Ensuring transparency and immutability through smart contracts. Audited and optimized for gas efficiency.",
-        tags: ["Solidity", "Hardhat", "Ethers.js", "React"],
-        image: "/project-2.jpg",
-        demoLink: "#",
-        codeLink: "#"
+        title: "LUMINA UI",
+        description: "A spatial component library for next-gen headsets.",
+        tags: ["WEBGL", "REACT"],
+        year: "2024",
+        role: "ARCHITECT"
     },
     {
-        title: "Neural Nexus",
-        description: "AI-powered data visualization dashboard. Processes real-time data streams and renders complex graphs using WebGL. High performance for large datasets.",
-        tags: ["Python", "TensorFlow", "WebGL", "Three.js"],
-        image: "/project-3.jpg",
-        demoLink: "#",
-        codeLink: "#"
+        title: "CORE PROTOCOL",
+        description: "Ultra-low latency communication framework.",
+        tags: ["GO", "GRPC"],
+        year: "2023",
+        role: "SYSTEMS DESIGN"
+    },
+    {
+        title: "ZENITH OPERATING OS",
+        description: "An experimental interface for kernel-level interaction.",
+        tags: ["RUST", "KERNEL"],
+        year: "2023",
+        role: "CREATIVE TECH"
     }
 ]
 
 export function ProjectsSection() {
     return (
-        <section id="projects" className="py-24 px-4 relative bg-black/20">
+        <section id="works" className="py-24 px-6 md:px-12 lg:px-24 relative bg-surface-container-low">
             <div className="max-w-7xl mx-auto">
-                <h2 className="text-3xl md:text-4xl font-serif text-center mb-4 text-white">
-                    <span className="text-reiatsu">{"///"}</span> Constructed Realities
-                </h2>
-                <p className="text-center text-muted-foreground font-mono mb-16 max-w-2xl mx-auto">
-                    Selected works demonstrating mastery over the digital medium.
-                </p>
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-16">
+                    <h2 className="text-headline-lg text-on-surface">
+                        SELECTED WORKS
+                    </h2>
+                    <span className="text-label-sm text-on-surface-variant mt-2 md:mt-0">
+                        [001—004] ARCHIVE/2024
+                    </span>
+                </div>
 
-                <div className="grid grid-cols-1 gap-12">
-                    {projects.map((project, index) => (
-                        <GlassCard
-                            key={index}
-                            intensity="medium"
-                            className="group flex flex-col md:flex-row overflow-hidden min-h-[400px]"
-                        >
-                            {/* Image Size / Container */}
-                            <div className="md:w-3/5 h-64 md:h-auto relative overflow-hidden bg-obsidian">
-                                <div className="absolute inset-0 bg-gradient-to-t from-obsidian to-transparent opacity-60 z-10" />
-                                {/* Placeholder for actual image - using a colored div for now for effect */}
-                                <div className={`w-full h-full bg-gradient-to-br from-gray-900 to-gray-800 group-hover:scale-105 transition-transform duration-700 ease-out`} />
-
-                                {/* Overlay Text on Image */}
-                                <div className="absolute bottom-0 left-0 p-8 z-20 md:hidden">
-                                    <h3 className="text-2xl font-serif font-bold text-white mb-2">{project.title}</h3>
+                {/* Asymmetrical grid layout */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Large featured project - spans 2 cols on md */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="md:col-span-2 group"
+                    >
+                        <div className="bg-surface-container p-8 md:p-12 transition-all duration-500 hover:bg-surface-container-high">
+                            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        {projects[0].tags.map((tag, i) => (
+                                            <span key={i} className="text-label-sm text-on-surface-variant/60">
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <h3 className="text-headline-md text-on-surface group-hover:text-primary transition-colors duration-300">
+                                        {projects[0].title}
+                                    </h3>
+                                    <p className="text-body-md text-on-surface-variant mt-3 max-w-lg">
+                                        {projects[0].description}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 text-label-sm text-primary/70 group-hover:text-primary transition-colors cursor-pointer">
+                                    VIEW CASE STUDY
+                                    <ArrowRight className="w-3 h-3" />
                                 </div>
                             </div>
+                        </div>
+                    </motion.div>
 
-                            {/* Content Side */}
-                            <div className="md:w-2/5 p-8 md:p-12 flex flex-col justify-center relative bg-white/[0.01]">
-                                <div className="hidden md:block">
-                                    <h3 className="text-3xl font-serif font-bold text-white mb-6 group-hover:text-reiatsu transition-colors duration-300">
+                    {/* Smaller projects */}
+                    {projects.slice(1).map((project, index) => (
+                        <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: index * 0.1 }}
+                            className="group"
+                        >
+                            <div className="bg-surface-container p-8 transition-all duration-500 hover:bg-surface-container-high h-full flex flex-col justify-between">
+                                <div>
+                                    <div className="flex items-start justify-between mb-6">
+                                        <span className="text-label-sm text-on-surface-variant/40">
+                                            {project.year}
+                                        </span>
+                                        <span className="text-label-sm text-on-surface-variant/40">
+                                            {project.role}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-headline-sm text-on-surface group-hover:text-primary transition-colors duration-300">
                                         {project.title}
                                     </h3>
+                                    <p className="text-body-md text-on-surface-variant mt-3">
+                                        {project.description}
+                                    </p>
                                 </div>
-
-                                <p className="text-gray-400 font-sans leading-relaxed mb-8">
-                                    {project.description}
-                                </p>
-
-                                <div className="flex flex-wrap gap-2 mb-10">
+                                <div className="flex items-center gap-3 mt-6">
                                     {project.tags.map((tag, i) => (
-                                        <span key={i} className="text-xs font-mono text-hogyoku px-2 py-1 border border-hogyoku/20 rounded bg-hogyoku/5">
+                                        <span key={i} className="text-label-sm text-on-surface-variant/60">
                                             {tag}
                                         </span>
                                     ))}
                                 </div>
-
-                                <div className="flex items-center gap-6 mt-auto">
-                                    <a
-                                        href={project.demoLink}
-                                        className="flex items-center gap-2 text-sm font-bold tracking-widest text-white uppercase hover:text-reiatsu transition-colors"
-                                    >
-                                        Live Demo <ExternalLink className="w-4 h-4" />
-                                    </a>
-                                    <a
-                                        href={project.codeLink}
-                                        className="flex items-center gap-2 text-sm font-bold tracking-widest text-gray-500 uppercase hover:text-white transition-colors"
-                                    >
-                                        Source Code <Github className="w-4 h-4" />
-                                    </a>
-                                </div>
                             </div>
-                        </GlassCard>
+                        </motion.div>
                     ))}
                 </div>
             </div>

@@ -1,66 +1,88 @@
 "use client"
 
-import { GlassCard } from "../ui/GlassCard"
-import { Layout, Server, Terminal, Cpu } from "lucide-react"
+import { motion } from "framer-motion"
+import { Chip } from "../ui/Chip"
 
 const skills = [
     {
         category: "Frontend Architecture",
-        icon: <Layout className="w-6 h-6" />,
         items: ["React", "Next.js 14", "TypeScript", "Tailwind CSS", "Framer Motion", "Three.js"]
     },
     {
         category: "Backend Systems",
-        icon: <Server className="w-6 h-6" />,
         items: ["Node.js", "Python", "PostgreSQL", "GraphQL", "Redis", "Docker"]
     },
     {
         category: "DevOps & Tools",
-        icon: <Terminal className="w-6 h-6" />,
         items: ["Git", "AWS", "CI/CD Pipelines", "Linux", "Vercel", "Jest"]
     },
     {
         category: "AI & Emerging Tech",
-        icon: <Cpu className="w-6 h-6" />,
         items: ["OpenAI API", "LangChain", "Vector DBs", "Model Fine-tuning"]
     }
 ]
 
 export function SkillsSection() {
     return (
-        <section className="py-24 px-4 relative">
-            <div className="max-w-6xl mx-auto">
-                <h2 className="text-3xl md:text-4xl font-serif text-center mb-16 text-white">
-                    <span className="text-reiatsu">{"///"}</span> Technical Arsenal
-                </h2>
+        <section className="py-24 px-6 md:px-12 lg:px-24 relative">
+            <div className="max-w-7xl mx-auto">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-16">
+                    <h2 className="text-headline-lg text-on-surface">
+                        THE STACK
+                    </h2>
+                    <span className="text-label-sm text-on-surface-variant mt-2 md:mt-0">
+                        TECHNOLOGICAL PROFICIENCY INDEX
+                    </span>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-wrap gap-3">
+                    {skills.flatMap((skill, skillIndex) =>
+                        skill.items.map((item, itemIndex) => (
+                            <motion.div
+                                key={`${skillIndex}-${itemIndex}`}
+                                initial={{ opacity: 0, y: 12 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{
+                                    duration: 0.4,
+                                    delay: (skillIndex * skill.items.length + itemIndex) * 0.03,
+                                    ease: "easeOut"
+                                }}
+                            >
+                                <Chip label={item} />
+                            </motion.div>
+                        ))
+                    )}
+                </div>
+
+                {/* Category breakdown */}
+                <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {skills.map((skill, index) => (
-                        <GlassCard
+                        <motion.div
                             key={index}
-                            intensity="low"
-                            className="p-8 group hover:border-reiatsu/30 flex flex-col gap-6"
+                            initial={{ opacity: 0, y: 16 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: index * 0.1 }}
+                            className="bg-surface-container p-6"
                         >
-                            <div className="flex items-center gap-4 mb-2">
-                                <div className="p-3 rounded-lg bg-white/5 text-gray-400 group-hover:text-reiatsu group-hover:bg-reiatsu/10 transition-colors duration-300">
-                                    {skill.icon}
-                                </div>
-                                <h3 className="text-xl font-serif text-gray-200 group-hover:text-white transition-colors">
-                                    {skill.category}
-                                </h3>
-                            </div>
-
+                            <span className="text-label-sm text-on-surface-variant/60">
+                                {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <h3 className="text-headline-sm text-on-surface mt-2 mb-3">
+                                {skill.category}
+                            </h3>
                             <div className="flex flex-wrap gap-2">
                                 {skill.items.map((item, i) => (
                                     <span
                                         key={i}
-                                        className="px-3 py-1 text-xs font-mono text-gray-400 border border-white/5 rounded-full bg-white/[0.02] group-hover:border-reiatsu/20 group-hover:text-gray-300 transition-colors duration-300"
+                                        className="text-label-sm text-primary/70"
                                     >
                                         {item}
                                     </span>
                                 ))}
                             </div>
-                        </GlassCard>
+                        </motion.div>
                     ))}
                 </div>
             </div>

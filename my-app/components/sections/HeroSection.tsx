@@ -1,85 +1,99 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ReiatsuButton } from "../ui/ReiatsuButton"
-import { ArrowDown } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 export function HeroSection() {
     return (
-        <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
-            {/* Abstract Energy Flow Background */}
-            <div className="absolute inset-0 w-full h-full bg-obsidian">
-                <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-reiatsu/5 blur-[120px] rounded-full mix-blend-screen animate-pulse-slow" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-hogyoku/5 blur-[120px] rounded-full mix-blend-screen animate-pulse-slow delay-1000" />
-            </div>
+        <section className="relative min-h-screen flex flex-col justify-center overflow-hidden px-6 md:px-12 lg:px-24 pt-24 pb-16">
+            {/* Subtle ambient glow */}
+            <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
 
-            {/* Grid overlay */}
-            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03]" />
-
-            <div className="relative z-10 px-4 text-center max-w-4xl mx-auto">
+            <div className="relative z-10 max-w-7xl mx-auto w-full">
+                {/* Top label */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
                 >
-                    <span className="inline-block py-1 px-3 mb-6 text-sm font-mono text-hogyoku tracking-widest border border-hogyoku/20 rounded-full bg-hogyoku/5 backdrop-blur-sm">
-                        SYSTEM.ONLINE // WELCOME
+                    <span className="text-label-md text-on-surface-variant tracking-[0.2em]">
+                        Systems Architect & Interface Engineer
                     </span>
                 </motion.div>
 
-                <motion.h1
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 1, delay: 0.2 }}
-                    className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold tracking-tight text-white mb-6 text-glow-cyan"
+                {/* Main headline - asymmetrical, pushed left */}
+                <motion.div
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
+                    className="mt-6 md:mt-10"
                 >
-                    Architecting <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400">
-                        Digital Realities
-                    </span>
-                </motion.h1>
+                    <h1 className="text-display-lg md:text-display-lg lg:text-[4.5rem] leading-[0.95] tracking-[-0.04em] text-on-surface">
+                        CRAFTING
+                        <br />
+                        <span className="text-primary">DIGITAL</span>
+                        <br />
+                        MONOLITHS.
+                    </h1>
+                </motion.div>
 
-                <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 1, delay: 0.6 }}
-                    className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 font-mono"
-                >
-                    Shattering the boundary between illusion and code.
-                    Building immersive experiences that wield power and elegance.
-                </motion.p>
+                {/* Asymmetrical content row */}
+                <div className="mt-12 md:mt-16 flex flex-col md:flex-row gap-12 md:gap-24">
+                    {/* Left: Description */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.7, delay: 0.35, ease: "easeOut" }}
+                        className="md:w-[45%]"
+                    >
+                        <p className="text-body-lg text-on-surface-variant leading-relaxed max-w-md">
+                            Developing high-performance spatial interfaces
+                            and scalable architectural backends. Where
+                            technical precision meets editorial design.
+                        </p>
+                    </motion.div>
 
+                    {/* Right: Current Focus */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.7, delay: 0.5, ease: "easeOut" }}
+                        className="md:w-[40%] md:ml-auto"
+                    >
+                        <div className="bg-surface-container p-6 md:p-8">
+                            <span className="text-label-sm text-on-surface-variant/60 tracking-wider">
+                                CURRENT FOCUS
+                            </span>
+                            <p className="text-body-md text-on-surface mt-3 leading-relaxed">
+                                WebGPU / Distributed Systems
+                            </p>
+                        </div>
+                    </motion.div>
+                </div>
+
+                {/* CTA Row */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.8 }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-4"
+                    transition={{ duration: 0.7, delay: 0.65, ease: "easeOut" }}
+                    className="mt-12 md:mt-16 flex items-center gap-6"
                 >
-                    <ReiatsuButton onClick={() => document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' })}>
-                        Explore Works
-                    </ReiatsuButton>
+                    <button
+                        onClick={() => document.getElementById('works')?.scrollIntoView({ behavior: 'smooth' })}
+                        className="group inline-flex items-center gap-3 px-6 py-3 bg-primary-container text-on-primary-container font-display text-sm font-medium tracking-wide transition-transform duration-300 hover:scale-[1.02]"
+                    >
+                        VIEW WORK
+                        <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    </button>
 
-                    <a href="#contact" className="px-8 py-3 text-sm font-mono text-gray-400 hover:text-white transition-colors">
-                        Init_Contact_Protocol()
+                    <a
+                        href="#contact"
+                        className="text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-300"
+                    >
+                        CONNECT
                     </a>
                 </motion.div>
             </div>
-
-            {/* Scroll Indicator */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.5, duration: 1 }}
-                className="absolute bottom-10 left-1/2 -translate-x-1/2"
-            >
-                <motion.div
-                    animate={{ y: [0, 10, 0] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                    className="text-muted-foreground/50"
-                >
-                    <ArrowDown className="w-6 h-6" />
-                </motion.div>
-            </motion.div>
         </section>
     )
 }
