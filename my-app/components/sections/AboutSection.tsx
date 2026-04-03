@@ -53,7 +53,7 @@ export function AboutSection() {
                             Based at the intersection of aesthetic precision and technical rigor. I specialize in building digital artifacts that balance brutalist foundations with fluid interactivity.
                         </p>
                         <p className="text-body-md text-on-surface-variant/60 mt-6 leading-relaxed">
-                            My approach is defined by the "Architectural Monolith" philosophy: creating singular, robust entities where every line of code serves a structural purpose. No decoration, only intent.
+                            My approach is defined by the &ldquo;Architectural Monolith&rdquo; philosophy: creating singular, robust entities where every line of code serves a structural purpose. No decoration, only intent.
                         </p>
                     </motion.div>
 

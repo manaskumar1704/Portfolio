@@ -25,7 +25,7 @@ const ReiatsuButton = React.forwardRef<HTMLButtonElement, ReiatsuButtonProps>(
 
         return (
             <motion.button
-                ref={ref as any}
+                ref={ref}
                 className={cn(baseStyles, variants[variant], className)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
