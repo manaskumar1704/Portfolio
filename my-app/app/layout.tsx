@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "../components/ThemeProvider";
+import { Canvas } from "../components/sections/Canvas";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-display",
@@ -37,6 +38,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <Canvas />
           {children}
         </ThemeProvider>
       </body>

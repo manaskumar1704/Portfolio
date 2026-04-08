@@ -11,6 +11,7 @@ export function ContactSection() {
         e.preventDefault()
         const mailtoLink = `mailto:manaskumar1704@gmail.com?subject=Portfolio Inquiry from ${formState.name}&body=${formState.message}%0A%0AFrom: ${formState.email}`
         window.location.href = mailtoLink
+        setFormState({ name: "", email: "", message: "" })
     }
 
     return (
@@ -37,7 +38,7 @@ export function ContactSection() {
                         <div className="space-y-6">
                             <a
                                 href="mailto:manaskumar1704@gmail.com"
-                                className="flex items-center gap-3 text-on-surface hover:text-primary transition-colors"
+                                className="flex w-fit items-center gap-3 text-on-surface hover:text-primary transition-colors"
                             >
                                 <Mail className="w-5 h-5" />
                                 <span className="text-body-md">manaskumar1704@gmail.com</span>
@@ -47,7 +48,7 @@ export function ContactSection() {
                                 href="https://www.linkedin.com/in/manas-kumar1/"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 text-on-surface hover:text-primary transition-colors"
+                                className="flex w-fit items-center gap-3 text-on-surface hover:text-primary transition-colors"
                             >
                                 <Linkedin className="w-5 h-5" />
                                 <span className="text-body-md">linkedin.com/in/manas-kumar1</span>
@@ -57,7 +58,7 @@ export function ContactSection() {
                                 href="https://github.com/manaskumar1704"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 text-on-surface hover:text-primary transition-colors"
+                                className="flex w-fit items-center gap-3 text-on-surface hover:text-primary transition-colors"
                             >
                                 <Github className="w-5 h-5" />
                                 <span className="text-body-md">github.com/manaskumar1704</span>
@@ -87,6 +88,7 @@ export function ContactSection() {
                                     onChange={(e) => setFormState(prev => ({ ...prev, name: e.target.value }))}
                                     className="w-full bg-surface-container-lowest border-b border-outline-variant/15 py-3 px-4 text-on-surface focus:outline-none focus:border-primary transition-colors"
                                     required
+                                    suppressHydrationWarning
                                 />
                             </div>
 
@@ -102,6 +104,7 @@ export function ContactSection() {
                                     onChange={(e) => setFormState(prev => ({ ...prev, email: e.target.value }))}
                                     className="w-full bg-surface-container-lowest border-b border-outline-variant/15 py-3 px-4 text-on-surface focus:outline-none focus:border-primary transition-colors"
                                     required
+                                    suppressHydrationWarning
                                 />
                             </div>
 
@@ -117,6 +120,7 @@ export function ContactSection() {
                                     onChange={(e) => setFormState(prev => ({ ...prev, message: e.target.value }))}
                                     className="w-full bg-surface-container-lowest border-b border-outline-variant/15 py-3 px-4 text-on-surface focus:outline-none focus:border-primary transition-colors resize-none"
                                     required
+                                    suppressHydrationWarning
                                 />
                             </div>
 
