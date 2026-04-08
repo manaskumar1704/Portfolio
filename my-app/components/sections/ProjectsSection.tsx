@@ -1,120 +1,188 @@
 "use client"
 
+import { useState, useCallback } from "react"
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const projects = [
     {
-        title: "NEURAL ENGINE v2",
-        description: "Real-time distributed computation for edge-AI rendering.",
-        tags: ["SYSTEMS", "RUST"],
-        year: "2024",
-        role: "LEAD ENGINEER"
+        slot: "A",
+        number: "01",
+        badge: "GenAI",
+        year: "2026",
+        title: "RAG INTELLIGENCE PLATFORM",
+        description: "End-to-end production RAG system with hybrid search (vector + BM25), multi-hop reasoning chains, PII redaction via Presidio, Cohere reranking, and a RAGAS evaluation suite. Async FastAPI backend with real-time LangSmith observability.",
+        tech: ["LangGraph", "FastAPI", "pgvector", "Cohere", "RAGAS", "LangSmith", "Claude API", "Docker"],
+        github: "https://github.com/manaskumar1704/rag-intelligence-platform",
+        live: "https://rag-demo.vercel.app",
+        image: "/images/projects/project-rag.png"
     },
     {
-        title: "LUMINA UI",
-        description: "A spatial component library for next-gen headsets.",
-        tags: ["WEBGL", "REACT"],
-        year: "2024",
-        role: "ARCHITECT"
+        slot: "B",
+        number: "02",
+        badge: "Agentic AI",
+        year: "2026",
+        title: "NL → N8N WORKFLOW AGENT",
+        description: "Natural language to automation. Parses intent, generates valid n8n workflow JSON via multi-step tool-calling. Validates node connections and deploys live via the n8n API.",
+        tech: ["LangGraph", "Claude API", "n8n API", "FastAPI", "Next.js"],
+        github: "https://github.com/manaskumar1704/nl-n8n-agent",
+        live: "https://nl-workflow.vercel.app",
+        image: "/images/projects/project-n8n.png"
     },
     {
-        title: "CORE PROTOCOL",
-        description: "Ultra-low latency communication framework.",
-        tags: ["GO", "GRPC"],
-        year: "2023",
-        role: "SYSTEMS DESIGN"
+        slot: "C",
+        number: "03",
+        badge: "Lab Project",
+        isFullWidth: true,
+        liveBadge: "LIVE MONITOR",
+        year: "2026",
+        title: "GEOPOLITICAL CRISIS MONITOR",
+        description: "Autonomous multi-agent system monitoring geopolitical events in real-time across news APIs, RSS, and social signals. LangGraph-orchestrated parallel agents for scraping, summarization, and risk-scoring. Delivers structured briefings with source attribution and confidence scores.",
+        tech: ["LangGraph", "APScheduler", "Claude API", "Supabase", "Docker", "GitHub Actions"],
+        github: "https://github.com/manaskumar1704/geopolitical-crisis-monitor",
+        live: "https://geo-monitor.vercel.app",
+        image: "/images/projects/project-geo.png"
     },
     {
-        title: "ZENITH OPERATING OS",
-        description: "An experimental interface for kernel-level interaction.",
-        tags: ["RUST", "KERNEL"],
-        year: "2023",
-        role: "CREATIVE TECH"
+        slot: "D",
+        number: "04",
+        badge: "Multi-Agent",
+        year: "2026",
+        title: "FINANCIAL RESEARCH ASSISTANT",
+        description: "Collaborative multi-agent system for financial research. Specialized agents handle SEC filing parsing, earnings call sentiment via FinBERT, web search for market context, and report synthesis. Human-in-the-loop checkpoints via LangGraph. AWS Bedrock model fallback.",
+        tech: ["LangGraph", "FinBERT", "AWS Bedrock", "Claude API", "FastAPI", "shadcn/ui"],
+        github: "https://github.com/manaskumar1704/multi-agent-finresearch",
+        live: "https://fin-research.vercel.app",
+        image: "/images/projects/project_finai.png"
+    },
+    {
+        slot: "E",
+        number: "05",
+        badge: "ML Research",
+        year: "2025",
+        title: "GRAPHSAGE FRAUD DETECTION",
+        description: "Graph neural network fraud detection trained on transaction graphs. GraphSAGE node classification identifies anomalous patterns with high precision across high-volume financial datasets. Strongest academic ML result.",
+        tech: ["PyTorch", "GraphSAGE", "scikit-learn", "Pandas", "Python"],
+        github: "https://github.com/manaskumar1704/graphsage-fraud",
+        live: null,
+        image: "/images/projects/project_graphsage.png"
     }
 ]
 
 export function ProjectsSection() {
+    const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({})
+
+    const handleImageError = useCallback((index: number) => {
+        setImageErrors(prev => ({ ...prev, [index]: true }))
+    }, [])
+
     return (
-        <section id="works" className="py-24 px-6 md:px-12 lg:px-24 relative bg-surface-container-low">
+        <section id="projects" className="py-24 px-6 md:px-12 lg:px-24 relative bg-surface-container-low">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-16">
-                    <h2 className="text-headline-lg text-on-surface">
-                        SELECTED WORKS
-                    </h2>
-                    <span className="text-label-sm text-on-surface-variant mt-2 md:mt-0">
-                        [001—004] ARCHIVE/2024
-                    </span>
+                    <div>
+                        <span className="text-label-sm text-on-surface-variant tracking-[0.3em]">
+                            SELECTED WORKS
+                        </span>
+                        <h2 className="font-display text-6xl md:text-7xl lg:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4">
+                            PROJECTS.
+                        </h2>
+                    </div>
                 </div>
 
-                {/* Asymmetrical grid layout */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Large featured project - spans 2 cols on md */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
-                        className="md:col-span-2 group"
-                    >
-                        <div className="bg-surface-container p-8 md:p-12 transition-all duration-500 hover:bg-surface-container-high">
-                            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        {projects[0].tags.map((tag, i) => (
-                                            <span key={i} className="text-label-sm text-on-surface-variant/60">
-                                                {tag}
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <h3 className="text-headline-md text-on-surface group-hover:text-primary transition-colors duration-300">
-                                        {projects[0].title}
-                                    </h3>
-                                    <p className="text-body-md text-on-surface-variant mt-3 max-w-lg">
-                                        {projects[0].description}
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2 text-label-sm text-primary/70 group-hover:text-primary transition-colors cursor-pointer">
-                                    VIEW CASE STUDY
-                                    <ArrowRight className="w-3 h-3" />
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    {/* Smaller projects */}
-                    {projects.slice(1).map((project, index) => (
+                <div className="grid grid-cols-12 gap-6">
+                    {projects.map((project, index) => (
                         <motion.div
                             key={index}
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            className="group"
+                            transition={{ duration: 0.6, delay: index * 0.1 }}
+                            className={cn(
+                                "group relative overflow-hidden",
+                                project.slot === "A" && "md:col-span-8 aspect-[16/9]",
+                                project.slot === "B" && "md:col-span-4 md:mt-32 aspect-[3/4]",
+                                project.slot === "C" && "md:col-span-12",
+                                (project.slot === "D" || project.slot === "E") && "md:col-span-6 aspect-square"
+                            )}
                         >
-                            <div className="bg-surface-container p-8 transition-all duration-500 hover:bg-surface-container-high h-full flex flex-col justify-between">
-                                <div>
-                                    <div className="flex items-start justify-between mb-6">
-                                        <span className="text-label-sm text-on-surface-variant/40">
-                                            {project.year}
-                                        </span>
-                                        <span className="text-label-sm text-on-surface-variant/40">
-                                            {project.role}
+                            <div className="absolute inset-0 bg-surface-container">
+                                {imageErrors[index] ? (
+                                    <div className="w-full h-full bg-surface-container-high flex items-center justify-center">
+                                        <span className="text-on-surface-variant text-sm">Image unavailable</span>
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={project.image}
+                                        alt={project.title}
+                                        onError={() => handleImageError(index)}
+                                        className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700"
+                                    />
+                                )}
+                                {project.liveBadge && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="bg-surface/80 backdrop-blur px-4 py-2 font-display text-[10px] tracking-widest uppercase border border-white/5">
+                                            {project.liveBadge}
                                         </span>
                                     </div>
-                                    <h3 className="text-headline-sm text-on-surface group-hover:text-primary transition-colors duration-300">
-                                        {project.title}
-                                    </h3>
-                                    <p className="text-body-md text-on-surface-variant mt-3">
-                                        {project.description}
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-3 mt-6">
-                                    {project.tags.map((tag, i) => (
-                                        <span key={i} className="text-label-sm text-on-surface-variant/60">
-                                            {tag}
+                                )}
+                            </div>
+
+                            <div className="absolute inset-0 bg-gradient-to-t from-surface/90 via-surface/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
+
+                            <div className="absolute top-4 left-4 flex items-center gap-3">
+                                <span className="text-label-sm text-on-surface-variant/60">{project.number}</span>
+                                {(project.badge || project.isFullWidth) && (
+                                    <span className="text-label-xs text-primary px-2 py-0.5 bg-primary/10 rounded">
+                                        {project.badge}
+                                    </span>
+                                )}
+                            </div>
+
+                            {!project.isFullWidth && project.year && (
+                                <span className="absolute top-4 right-4 text-label-sm text-on-surface-variant/60">
+                                    {project.year}
+                                </span>
+                            )}
+
+                            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                                <h3 className={cn(
+                                    "font-display uppercase tracking-tighter text-on-surface group-hover:italic transition-all duration-300",
+                                    project.slot === "C" ? "text-5xl md:text-7xl" : "text-2xl md:text-3xl"
+                                )}>
+                                    {project.title}
+                                </h3>
+                                <p className="text-body-md text-on-surface-variant mt-3 max-w-xl line-clamp-2">
+                                    {project.description}
+                                </p>
+                                <div className="flex flex-wrap gap-2 mt-4">
+                                    {project.tech.map((tech, i) => (
+                                        <span key={i} className="text-label-xs text-on-surface-variant/70">
+                                            {tech}
                                         </span>
                                     ))}
+                                </div>
+                                <div className="flex items-center gap-4 mt-4">
+                                    <a
+                                        href={project.github}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-label-sm text-primary hover:text-primary/80 transition-colors"
+                                    >
+                                        GitHub →
+                                    </a>
+                                    {project.live && (
+                                        <a
+                                            href={project.live}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group/cta text-label-sm text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1"
+                                        >
+                                            View Case 
+                                            <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover/cta:translate-x-1" />
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>

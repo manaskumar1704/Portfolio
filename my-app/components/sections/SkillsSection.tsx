@@ -1,82 +1,70 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Chip } from "../ui/Chip"
 
-const skills = [
+const skillCategories = [
     {
-        category: "Frontend Architecture",
-        items: ["React", "Next.js 14", "TypeScript", "Tailwind CSS", "Framer Motion", "Three.js"]
+        category: "AI / LLM Core",
+        items: ["LangGraph", "LangChain", "Anthropic Claude API", "AWS Bedrock", "OpenAI API", "LlamaIndex", "Hugging Face", "FinBERT", "Guardrails AI", "Presidio", "RAGAS", "LangSmith"]
     },
     {
-        category: "Backend Systems",
-        items: ["Node.js", "Python", "PostgreSQL", "GraphQL", "Redis", "Docker"]
+        category: "Vector & Retrieval",
+        items: ["pgvector", "Supabase", "Pinecone", "ChromaDB", "Cohere Rerank"]
     },
     {
-        category: "DevOps & Tools",
-        items: ["Git", "AWS", "CI/CD Pipelines", "Linux", "Vercel", "Jest"]
+        category: "Backend",
+        items: ["Python 3.11", "FastAPI (async)", "Node.js", "REST", "WebSockets", "APScheduler"]
     },
     {
-        category: "AI & Emerging Tech",
-        items: ["OpenAI API", "LangChain", "Vector DBs", "Model Fine-tuning"]
+        category: "Frontend",
+        items: ["Next.js 14", "React", "TypeScript", "Tailwind CSS", "shadcn/ui"]
+    },
+    {
+        category: "DevOps & Infra",
+        items: ["Docker", "GitHub Actions", "Vercel", "AWS (Bedrock + S3)", "uv"]
+    },
+    {
+        category: "ML / Research",
+        items: ["PyTorch", "GraphSAGE", "scikit-learn", "XGBoost", "CNNs", "Pandas", "NumPy"]
+    },
+    {
+        category: "Databases",
+        items: ["PostgreSQL", "Supabase", "Redis", "MongoDB"]
     }
 ]
 
 export function SkillsSection() {
     return (
-        <section className="py-24 px-6 md:px-12 lg:px-24 relative">
+        <section id="skills" className="py-24 px-6 md:px-12 lg:px-24 relative">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-16">
-                    <h2 className="text-headline-lg text-on-surface">
-                        THE STACK
-                    </h2>
-                    <span className="text-label-sm text-on-surface-variant mt-2 md:mt-0">
-                        TECHNOLOGICAL PROFICIENCY INDEX
-                    </span>
+                    <div>
+                        <span className="text-label-sm text-on-surface-variant tracking-[0.3em]">
+                            TECHNICAL STACK
+                        </span>
+                        <h2 className="font-display text-4xl md:text-5xl lg:text-6xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4">
+                            TOOLS & SYSTEMS.
+                        </h2>
+                    </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                    {skills.flatMap((skill, skillIndex) =>
-                        skill.items.map((item, itemIndex) => (
-                            <motion.div
-                                key={`${skillIndex}-${itemIndex}`}
-                                initial={{ opacity: 0, y: 12 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{
-                                    duration: 0.4,
-                                    delay: (skillIndex * skill.items.length + itemIndex) * 0.03,
-                                    ease: "easeOut"
-                                }}
-                            >
-                                <Chip label={item} />
-                            </motion.div>
-                        ))
-                    )}
-                </div>
-
-                {/* Category breakdown */}
-                <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {skills.map((skill, index) => (
+                <div className="space-y-8">
+                    {skillCategories.map((category, catIndex) => (
                         <motion.div
-                            key={index}
+                            key={catIndex}
                             initial={{ opacity: 0, y: 16 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            className="bg-surface-container p-6"
+                            transition={{ duration: 0.5, delay: catIndex * 0.05 }}
                         >
-                            <span className="text-label-sm text-on-surface-variant/60">
-                                {String(index + 1).padStart(2, "0")}
-                            </span>
-                            <h3 className="text-headline-sm text-on-surface mt-2 mb-3">
-                                {skill.category}
+                            <h3 className="text-label-sm text-primary mb-3 tracking-wider">
+                                {category.category}
                             </h3>
                             <div className="flex flex-wrap gap-2">
-                                {skill.items.map((item, i) => (
+                                {category.items.map((item, itemIndex) => (
                                     <span
-                                        key={i}
-                                        className="text-label-sm text-primary/70"
+                                        key={itemIndex}
+                                        className="bg-surface-container-highest text-on-surface-variant px-3 py-1 text-xs font-display uppercase tracking-tighter transition-colors duration-200 hover:bg-primary/10 hover:text-primary cursor-default"
                                     >
                                         {item}
                                     </span>

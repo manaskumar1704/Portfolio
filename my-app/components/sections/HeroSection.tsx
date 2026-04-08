@@ -1,96 +1,108 @@
 "use client"
 
+import { useCallback } from "react"
 import { motion } from "framer-motion"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Github, Linkedin } from "lucide-react"
+import { Canvas } from "./Canvas"
 
 export function HeroSection() {
+    const scrollToProjects = useCallback(() => {
+        document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' })
+    }, [])
     return (
         <section className="relative min-h-screen flex flex-col justify-center overflow-hidden px-6 md:px-12 lg:px-24 pt-24 pb-16">
-            {/* Subtle ambient glow */}
-            <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
-
+            <Canvas />
+            
             <div className="relative z-10 max-w-7xl mx-auto w-full">
-                {/* Top label */}
                 <motion.div
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="flex items-center gap-2"
                 >
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                     <span className="text-label-md text-on-surface-variant tracking-[0.2em]">
-                        Systems Architect & Interface Engineer
+                        AVAILABLE FOR WORK
                     </span>
                 </motion.div>
 
-                {/* Main headline - asymmetrical, pushed left */}
                 <motion.div
                     initial={{ opacity: 0, y: 24 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
                     className="mt-6 md:mt-10"
                 >
-                    <h1 className="text-display-lg md:text-display-lg lg:text-[4.5rem] leading-[0.95] tracking-[-0.04em] text-on-surface">
-                        CRAFTING
-                        <br />
-                        <span className="text-primary">DIGITAL</span>
-                        <br />
-                        MONOLITHS.
+                    <h1 className="font-display text-6xl md:text-7xl lg:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface">
+                        Manas<br />
+                        <span className="text-primary">Kumar</span>
                     </h1>
                 </motion.div>
 
-                {/* Asymmetrical content row */}
-                <div className="mt-12 md:mt-16 flex flex-col md:flex-row gap-12 md:gap-24">
-                    {/* Left: Description */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, delay: 0.35, ease: "easeOut" }}
-                        className="md:w-[45%]"
-                    >
-                        <p className="text-body-lg text-on-surface-variant leading-relaxed max-w-md">
-                            Developing high-performance spatial interfaces
-                            and scalable architectural backends. Where
-                            technical precision meets editorial design.
-                        </p>
-                    </motion.div>
+                <motion.div
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
+                    className="mt-8 md:mt-12"
+                >
+                    <h2 className="font-display text-4xl md:text-5xl lg:text-6xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface">
+                        Building Production Grade<br />
+                        Agentic Systems.
+                    </h2>
+                </motion.div>
 
-                    {/* Right: Current Focus */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, delay: 0.5, ease: "easeOut" }}
-                        className="md:w-[40%] md:ml-auto"
-                    >
-                        <div className="bg-surface-container p-6 md:p-8">
-                            <span className="text-label-sm text-on-surface-variant/60 tracking-wider">
-                                CURRENT FOCUS
-                            </span>
-                            <p className="text-body-md text-on-surface mt-3 leading-relaxed">
-                                WebGPU / Distributed Systems
-                            </p>
-                        </div>
-                    </motion.div>
-                </div>
-
-                {/* CTA Row */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, delay: 0.65, ease: "easeOut" }}
-                    className="mt-12 md:mt-16 flex items-center gap-6"
+                    transition={{ duration: 0.7, delay: 0.35, ease: "easeOut" }}
+                    className="mt-6 md:mt-8"
+                >
+                    <p className="text-body-lg text-on-surface-variant max-w-xl">
+                        Open To
+                    </p>
+                    <p className="text-xl md:text-2xl font-display text-primary mt-1">
+                        GenAI . Agentic . Full-Stack . SDE
+                    </p>
+                </motion.div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
+                    className="mt-10 md:mt-14 flex items-center gap-6 flex-wrap"
                 >
                     <button
-                        onClick={() => document.getElementById('works')?.scrollIntoView({ behavior: 'smooth' })}
+                        onClick={scrollToProjects}
                         className="group inline-flex items-center gap-3 px-6 py-3 bg-primary-container text-on-primary-container font-display text-sm font-medium tracking-wide transition-transform duration-300 hover:scale-[1.02]"
                     >
-                        VIEW WORK
+                        View Projects
                         <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </button>
 
                     <a
-                        href="#contact"
-                        className="text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-300"
+                        href="/Manas_Kumar_Resume_SDE.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group inline-flex items-center gap-3 px-6 py-3 border border-white/10 text-on-surface font-display text-sm font-medium tracking-wide transition-all duration-300 hover:bg-white/5"
                     >
-                        CONNECT
+                        Download Resume
+                    </a>
+
+                    <a
+                        href="https://github.com/manaskumar1704"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 text-on-surface-variant hover:text-on-surface transition-colors duration-300"
+                    >
+                        <Github className="w-5 h-5" />
+                    </a>
+
+                    <a
+                        href="https://www.linkedin.com/in/manas-kumar1/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 text-on-surface-variant hover:text-on-surface transition-colors duration-300"
+                    >
+                        <Linkedin className="w-5 h-5" />
                     </a>
                 </motion.div>
             </div>
