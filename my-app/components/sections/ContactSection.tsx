@@ -127,6 +127,7 @@ export function ContactSection() {
                             <button
                                 type="submit"
                                 className="w-full py-4 bg-primary-container text-on-primary-container font-display text-sm font-medium tracking-wide uppercase transition-transform duration-300 hover:scale-[1.02]"
+                                suppressHydrationWarning
                             >
                                 Send Message
                             </button>
