@@ -79,7 +79,7 @@ export function HeroSection() {
                     </button>
 
                     <a
-                        href="/Manas_Kumar_Resume_SDE.pdf"
+                        href="/Manas_Kumar_Resume _SDE.pdf"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group inline-flex items-center gap-3 px-6 py-3 border border-white/10 text-on-surface font-display text-sm font-medium tracking-wide transition-all duration-300 hover:bg-white/5"

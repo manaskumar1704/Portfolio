@@ -54,11 +54,13 @@ export function FloatingDock() {
         >
             <nav className="rounded-full border border-white/10 bg-neutral-900/60 backdrop-blur-xl shadow-[0_20px_50px_rgba(70,145,255,0.1)] px-3 py-3 flex items-center gap-1">
                 {dockItems.map((item) => {
-                    const isActive = activeSection === item.href.replace("#", "")
+                    const section = item.href.replace("#", "")
+                    const isActive = activeSection === section
                     return (
                         <Link
                             key={item.href}
                             href={item.href}
+                            onClick={() => setActiveSection(section)}
                             className={cn(
                                 "flex items-center gap-2 px-6 py-2 rounded-full font-display text-xs tracking-wider transition-all duration-300",
                                 isActive
