@@ -15,32 +15,48 @@ const dockItems = [
 
 export function FloatingDock() {
     const [activeSection, setActiveSection] = useState("")
-    const observerRef = useRef<IntersectionObserver | null>(null)
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     useEffect(() => {
         const sections = dockItems.map(item => item.href.replace("#", ""))
-        
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        setActiveSection(entry.target.id)
-                    }
-                })
-            },
-            { threshold: 0.3, rootMargin: "-100px 0px -50% 0px" }
-        )
 
-        sections.forEach(id => {
-            const el = document.getElementById(id)
-            if (el && observerRef.current) {
-                observerRef.current.observe(el)
+        const getActiveSection = () => {
+            let closestSection = ""
+            let minDistance = Infinity
+
+            for (const id of sections) {
+                const el = document.getElementById(id)
+                if (!el) continue
+
+                const rect = el.getBoundingClientRect()
+                const distance = Math.abs(rect.top)
+
+                if (distance < minDistance && rect.top <= window.innerHeight * 0.5) {
+                    minDistance = distance
+                    closestSection = id
+                }
             }
-        })
+
+            setActiveSection(closestSection)
+        }
+
+        getActiveSection()
+
+        const handleScroll = () => {
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current)
+            }
+            scrollTimeoutRef.current = setTimeout(getActiveSection, 16)
+        }
+
+        window.addEventListener("scroll", handleScroll, { passive: true })
+        window.addEventListener("resize", getActiveSection, { passive: true })
 
         return () => {
-            if (observerRef.current) {
-                observerRef.current.disconnect()
+            window.removeEventListener("scroll", handleScroll)
+            window.removeEventListener("resize", getActiveSection)
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current)
             }
         }
     }, [])

@@ -3,7 +3,6 @@
 import { useCallback } from "react"
 import { motion } from "framer-motion"
 import { ArrowRight, Github, Linkedin } from "lucide-react"
-import Image from "next/image"
 
 export function HeroSection() {
     const scrollToProjects = useCallback(() => {
@@ -72,6 +71,7 @@ export function HeroSection() {
                         >
                             <button
                                 onClick={scrollToProjects}
+                                suppressHydrationWarning
                                 className="group inline-flex items-center gap-3 px-6 py-3 bg-primary-container text-on-primary-container font-display text-sm font-medium tracking-wide transition-transform duration-300 hover:scale-[1.02]"
                             >
                                 View Projects
@@ -114,11 +114,9 @@ export function HeroSection() {
                         className="hidden lg:block flex-shrink-0"
                     >
                         <div className="relative w-[280px] h-[350px] overflow-hidden rounded-lg group">
-                            <Image
+                            <img
                                 src="/images/projects/my_image.png"
                                 alt="Manas Kumar"
-                                width={280}
-                                height={350}
                                 className="w-full h-full object-cover object-top grayscale opacity-80 group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700"
                             />
                         </div>
