@@ -3,6 +3,7 @@
 import { useCallback } from "react"
 import { motion } from "framer-motion"
 import { ArrowRight, Github, Linkedin } from "lucide-react"
+import Image from "next/image"
 
 export function HeroSection() {
     const scrollToProjects = useCallback(() => {
@@ -113,9 +114,11 @@ export function HeroSection() {
                         className="hidden lg:block flex-shrink-0"
                     >
                         <div className="relative w-[280px] h-[350px] overflow-hidden rounded-lg group">
-                            <img
+                            <Image
                                 src="/images/projects/my_image.png"
                                 alt="Manas Kumar"
+                                width={280}
+                                height={350}
                                 className="w-full h-full object-cover object-top grayscale opacity-80 group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700"
                             />
                         </div>

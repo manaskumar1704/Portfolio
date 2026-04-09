@@ -23,7 +23,7 @@ export function AboutSection() {
                             ABOUT
                         </span>
                         <p className="text-body-lg text-on-surface-variant mt-6 leading-relaxed">
-                            I'm a Computer Science graduate from Vellore Institute of Technology, specializing in 
+                            I&#39;m a Computer Science graduate from Vellore Institute of Technology, specializing in 
                             LLM orchestration, RAG systems, and multi-agent architectures. I build 
                             AI systems that are production-ready — observable, evaluated, and 
                             deployable — not just demos. Actively seeking roles where agentic AI 

@@ -1,14 +1,20 @@
 # Portfolio Website
 
-A personal digital garden and portfolio showcasing my projects, skills, and resources. Built with a focus on performance, accessibility, and modern aesthetics using **Next.js 15**, **Tailwind CSS V4**, and **Shadcn UI**.
+A personal digital garden and portfolio showcasing my projects, skills, and resources. Built with a focus on performance, accessibility, and modern aesthetics using **Next.js**, **Tailwind CSS V4**, and **Shadcn UI**.
 
 ## 🚀 Tech Stack
 
-- **Framework:** [Next.js 15](https://nextjs.org/) (App Router, TurboPack)
-- **Styling:** [Tailwind CSS V4](https://tailwindcss.com/) & [Shadcn UI](https://ui.shadcn.com/)
-- **Animation:** [Framer Motion](https://www.framer.com/motion/)
-- **Testing:** [Vitest](https://vitest.dev/) & [React Testing Library](https://testing-library.com/)
-- **Runtime:** [Bun](https://bun.sh/)
+- **Framework:** [Next.js](https://nextjs.org/) (App Router)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS V4](https://tailwindcss.com/)
+- **UI Components:** [Shadcn UI](https://ui.shadcn.com/) (Radix Primitives)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **Data Fetching:** [TanStack Query](https://tanstack.com/query/latest)
+- **Animations:**
+  - [Framer Motion](https://www.framer.com/motion/) (Page transitions, UI interactions)
+  - [Anime.js](https://animejs.com/) (Complex sequences)
+  - [Three.js](https://threejs.org/) (3D elements)
+- **Package Manager:** [Bun](https://bun.sh/)
 
 ## ✨ Key Features
 
