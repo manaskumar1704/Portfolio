@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import Image from "next/image"
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -113,11 +114,14 @@ export function ProjectsSection() {
                                             <span className="text-on-surface-variant text-sm">Image unavailable</span>
                                         </div>
                                     ) : (
-                                        <img
+                                        <Image
                                             src={project.image}
                                             alt={project.title}
-                                            onError={() => handleImageError(index)}
+                                            width={800}
+                                            height={500}
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                             className="w-full aspect-[16/10] object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700"
+                                            onError={() => handleImageError(index)}
                                         />
                                     )}
                                 </div>

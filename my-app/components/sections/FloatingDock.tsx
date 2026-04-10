@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useEffect, useRef, useSyncExternalStore } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -13,40 +13,42 @@ const dockItems = [
     { label: "Inquiry", href: "#contact", icon: <Mail className="w-4 h-4" /> },
 ]
 
-export function FloatingDock() {
-    const [activeSection, setActiveSection] = useState("")
-    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+function useActiveSection() {
+    const activeRef = useRef("")
+    const rafRef = useRef<number | null>(null)
 
-    useEffect(() => {
+    const getActiveSection = () => {
         const sections = dockItems.map(item => item.href.replace("#", ""))
+        let closestSection = ""
+        let minDistance = Infinity
 
-        const getActiveSection = () => {
-            let closestSection = ""
-            let minDistance = Infinity
+        for (const id of sections) {
+            const el = document.getElementById(id)
+            if (!el) continue
 
-            for (const id of sections) {
-                const el = document.getElementById(id)
-                if (!el) continue
+            const rect = el.getBoundingClientRect()
+            const distance = Math.abs(rect.top)
 
-                const rect = el.getBoundingClientRect()
-                const distance = Math.abs(rect.top)
-
-                if (distance < minDistance && rect.top <= window.innerHeight * 0.5) {
-                    minDistance = distance
-                    closestSection = id
-                }
+            if (distance < minDistance && rect.top <= window.innerHeight * 0.5) {
+                minDistance = distance
+                closestSection = id
             }
-
-            setActiveSection(closestSection)
         }
 
+        if (closestSection !== activeRef.current) {
+            activeRef.current = closestSection
+        }
+    }
+
+    useEffect(() => {
         getActiveSection()
 
         const handleScroll = () => {
-            if (scrollTimeoutRef.current) {
-                clearTimeout(scrollTimeoutRef.current)
-            }
-            scrollTimeoutRef.current = setTimeout(getActiveSection, 16)
+            if (rafRef.current) return
+            rafRef.current = requestAnimationFrame(() => {
+                getActiveSection()
+                rafRef.current = null
+            })
         }
 
         window.addEventListener("scroll", handleScroll, { passive: true })
@@ -55,11 +57,22 @@ export function FloatingDock() {
         return () => {
             window.removeEventListener("scroll", handleScroll)
             window.removeEventListener("resize", getActiveSection)
-            if (scrollTimeoutRef.current) {
-                clearTimeout(scrollTimeoutRef.current)
-            }
+            if (rafRef.current) cancelAnimationFrame(rafRef.current)
         }
     }, [])
+
+    return useSyncExternalStore(
+        () => {
+            getActiveSection()
+            return () => {}
+        },
+        () => activeRef.current,
+        () => ""
+    )
+}
+
+export function FloatingDock() {
+    const activeSection = useActiveSection()
 
     return (
         <motion.div
@@ -76,7 +89,6 @@ export function FloatingDock() {
                         <Link
                             key={item.href}
                             href={item.href}
-                            onClick={() => setActiveSection(section)}
                             className={cn(
                                 "flex items-center gap-2 px-6 py-2 rounded-full font-display text-xs tracking-wider transition-all duration-300",
                                 isActive
