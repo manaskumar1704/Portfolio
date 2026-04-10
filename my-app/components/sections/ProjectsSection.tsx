@@ -72,9 +72,14 @@ const projects = [
 
 export function ProjectsSection() {
     const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({})
+    const [activeCard, setActiveCard] = useState<number | null>(null)
 
     const handleImageError = useCallback((index: number) => {
         setImageErrors(prev => ({ ...prev, [index]: true }))
+    }, [])
+
+    const handleCardTap = useCallback((index: number) => {
+        setActiveCard(prev => prev === index ? null : index)
     }, [])
 
     return (
@@ -85,13 +90,13 @@ export function ProjectsSection() {
                         <span className="text-label-sm text-on-surface-variant tracking-[0.3em]">
                             SELECTED WORKS
                         </span>
-                        <h2 className="font-display text-6xl md:text-7xl lg:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4">
+                        <h2 className="font-display text-4xl md:text-7xl lg:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4">
                             PROJECTS.
                         </h2>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-12 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6">
                     {projects.map((project, index) => (
                         <motion.div
                             key={index}
@@ -99,15 +104,16 @@ export function ProjectsSection() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.6, delay: index * 0.1 }}
+                            onClick={() => handleCardTap(index)}
                             className={cn(
-                                "group relative overflow-hidden",
-                                project.slot === "A" && "md:col-span-8",
-                                project.slot === "B" && "md:col-span-4 md:mt-32",
-                                project.slot === "C" && "md:col-span-12",
-                                (project.slot === "D" || project.slot === "E") && "md:col-span-6"
+                                "group relative overflow-hidden col-span-12 cursor-pointer touch-manipulation",
+                                project.slot === "A" && "lg:col-span-8 xl:max-w-[800px]",
+                                project.slot === "B" && "lg:col-span-4 lg:mt-32 xl:mt-40",
+                                project.slot === "C" && "lg:col-span-12",
+                                (project.slot === "D" || project.slot === "E") && "lg:col-span-6 xl:max-w-[540px]"
                             )}
                         >
-                            <div className="flex flex-col h-full bg-surface-container border border-surface-container-high">
+                            <div className="flex flex-col h-full bg-surface-container border border-surface-container-high active:scale-[0.99] transition-transform duration-200">
                                 <div className="relative overflow-hidden bg-surface">
                                     {imageErrors[index] ? (
                                         <div className="w-full aspect-[16/10] bg-surface-container-high flex items-center justify-center">
@@ -119,8 +125,13 @@ export function ProjectsSection() {
                                             alt={project.title}
                                             width={800}
                                             height={500}
+                                            quality={90}
                                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                            className="w-full aspect-[16/10] object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700"
+                                            className={cn(
+                                                "w-full aspect-[16/10] object-cover grayscale opacity-80 transition-all duration-700",
+                                                "group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100",
+                                                activeCard === index && "grayscale-0 scale-105 opacity-100"
+                                            )}
                                             onError={() => handleImageError(index)}
                                         />
                                     )}
@@ -145,7 +156,7 @@ export function ProjectsSection() {
 
                                     <h3 className={cn(
                                         "font-display uppercase tracking-tighter text-on-surface group-hover:italic transition-all duration-300",
-                                        project.slot === "C" ? "text-5xl md:text-7xl" : "text-2xl md:text-3xl"
+                                        project.slot === "C" ? "text-3xl md:text-5xl lg:text-7xl" : "text-xl md:text-2xl lg:text-3xl"
                                     )}>
                                         {project.title}
                                     </h3>
