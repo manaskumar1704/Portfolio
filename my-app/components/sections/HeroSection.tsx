@@ -119,7 +119,7 @@ export function HeroSection() {
                             transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
                             className="mt-6 md:mt-10"
                         >
-                            <h1 className="font-display text-4xl sm:text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface">
+                            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface">
                                 <Typewriter text="Manas" delay={0.3} />{" "}
                                 <span className="text-primary">
                                     <Typewriter text="Kumar" delay={0.8} />
@@ -140,7 +140,7 @@ export function HeroSection() {
                             transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
                             className="mt-6 md:mt-10"
                         >
-                            <h2 className="font-display text-2xl sm:text-3xl md:text-5xl lg:text-6xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface">
+                            <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface">
                                 <Typewriter text="Building Production Grade" delay={1.3} />
                                 <br />
                                 <span className="hidden sm:inline">
@@ -180,7 +180,7 @@ export function HeroSection() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
-                            className="mt-10 md:mt-14 flex items-center gap-6 flex-wrap"
+                            className="mt-10 md:mt-14 flex flex-wrap items-center gap-4 sm:gap-6"
                         >
                             <button
                                 onClick={scrollToProjects}
@@ -200,23 +200,25 @@ export function HeroSection() {
                                 Download Resume
                             </a>
 
-                            <a
-                                href="https://github.com/manaskumar1704"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-3 text-on-surface-variant hover:text-on-surface transition-colors duration-300"
-                            >
-                                <Github className="w-5 h-5" />
-                            </a>
+                            <div className="flex items-center gap-1 sm:gap-2 flex-nowrap">
+                                <a
+                                    href="https://github.com/manaskumar1704"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-3 text-on-surface-variant hover:text-on-surface transition-colors duration-300"
+                                >
+                                    <Github className="w-5 h-5" />
+                                </a>
 
-                            <a
-                                href="https://www.linkedin.com/in/manas-kumar1/"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-3 text-on-surface-variant hover:text-on-surface transition-colors duration-300"
-                            >
-                                <Linkedin className="w-5 h-5" />
-                            </a>
+                                <a
+                                    href="https://www.linkedin.com/in/manas-kumar1/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-3 text-on-surface-variant hover:text-on-surface transition-colors duration-300"
+                                >
+                                    <Linkedin className="w-5 h-5" />
+                                </a>
+                            </div>
                         </motion.div>
                     </div>
 

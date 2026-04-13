@@ -90,7 +90,7 @@ export function ProjectsSection() {
                         <span className="text-label-sm text-on-surface-variant tracking-[0.3em]">
                             SELECTED WORKS
                         </span>
-                        <h2 className="font-display text-4xl md:text-7xl lg:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4">
+                        <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4">
                             PROJECTS.
                         </h2>
                     </div>
@@ -107,10 +107,10 @@ export function ProjectsSection() {
                             onClick={() => handleCardTap(index)}
                             className={cn(
                                 "group relative overflow-hidden col-span-12 cursor-pointer touch-manipulation",
-                                project.slot === "A" && "lg:col-span-8 xl:max-w-[800px]",
-                                project.slot === "B" && "lg:col-span-4 lg:mt-32 xl:mt-40",
-                                project.slot === "C" && "lg:col-span-12",
-                                (project.slot === "D" || project.slot === "E") && "lg:col-span-6 xl:max-w-[540px]"
+                                project.slot === "A" && "md:col-span-2 lg:col-span-8 xl:max-w-[800px]",
+                                project.slot === "B" && "md:col-span-2 lg:col-span-4 lg:mt-32 xl:mt-40",
+                                project.slot === "C" && "md:col-span-2 lg:col-span-12",
+                                (project.slot === "D" || project.slot === "E") && "md:col-span-2 lg:col-span-6 xl:max-w-[540px]"
                             )}
                         >
                             <div className="flex flex-col h-full bg-surface-container border border-surface-container-high active:scale-[0.99] transition-transform duration-200">
@@ -156,7 +156,7 @@ export function ProjectsSection() {
 
                                     <h3 className={cn(
                                         "font-display uppercase tracking-tighter text-on-surface group-hover:italic transition-all duration-300",
-                                        project.slot === "C" ? "text-3xl md:text-5xl lg:text-7xl" : "text-xl md:text-2xl lg:text-3xl"
+                                        project.slot === "C" ? "text-xl md:text-3xl lg:text-4xl xl:text-5xl" : "text-lg md:text-xl lg:text-2xl"
                                     )}>
                                         {project.title}
                                     </h3>

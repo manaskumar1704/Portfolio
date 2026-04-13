@@ -20,7 +20,7 @@ export function ContactSection() {
                 <span className="text-label-sm text-on-surface-variant tracking-[0.3em]">
                     GET IN TOUCH
                 </span>
-                <h2 className="font-display text-6xl md:text-7xl lg:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4 mb-16">
+                <h2 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl leading-[0.95] tracking-[-0.04em] uppercase text-on-surface mt-4 mb-16">
                     CONTACT.
                 </h2>
 

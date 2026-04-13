@@ -8,7 +8,7 @@ import { FloatingDock } from "../components/sections/FloatingDock";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-surface text-on-surface selection:bg-primary/30 selection:text-white">
+    <main className="min-h-screen bg-surface text-on-surface selection:bg-primary/30 selection:text-white pb-20 md:pb-0">
       <HeroSection />
       <AboutSection />
       <SkillsSection />
