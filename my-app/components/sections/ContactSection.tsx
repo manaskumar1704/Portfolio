@@ -84,6 +84,7 @@ export function ContactSection() {
                                     type="text"
                                     id="name"
                                     name="name"
+                                    autoComplete="name"
                                     value={formState.name}
                                     onChange={(e) => setFormState(prev => ({ ...prev, name: e.target.value }))}
                                     className="w-full bg-surface-container-lowest border-b border-outline-variant/15 py-3 px-4 text-on-surface focus:outline-none focus:border-primary transition-colors"
@@ -100,6 +101,7 @@ export function ContactSection() {
                                     type="email"
                                     id="email"
                                     name="email"
+                                    autoComplete="email"
                                     value={formState.email}
                                     onChange={(e) => setFormState(prev => ({ ...prev, email: e.target.value }))}
                                     className="w-full bg-surface-container-lowest border-b border-outline-variant/15 py-3 px-4 text-on-surface focus:outline-none focus:border-primary transition-colors"
