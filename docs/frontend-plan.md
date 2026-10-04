@@ -62,6 +62,12 @@ dark-terminal brand; `prefers-color-scheme` flipping would break it.
 | `contact-row` | `key  value` row |
 | `cursor` | blinking block caret |
 | `reveal` | IntersectionObserver fade-up wrapper (client leaf) |
+| `section-head` | `01  title ————` index + title + hairline rule |
+| `typewriter` | sequential character reveal, fires `onComplete` once |
+
+`section-head` and `reveal` exist because two sections needed the same markup;
+`typewriter` exists because the landing intro types line by line and each line
+must wait for the previous one.
 
 ### Features — `src/features/<name>` (components + hooks)
 
@@ -72,6 +78,14 @@ dark-terminal brand; `prefers-color-scheme` flipping would break it.
 | `shell` | `Topbar`, `Statusbar` (clock), `BootOverlay` (skippable), `CrtOverlay`, `RevealOnScroll` |
 | `projects` | `TaskCardGrid` from fixtures |
 | `contact` | `contact.sh` panel from fixtures |
+
+### Hooks — `src/hooks`
+
+`use-reduced-motion` subscribes to the `prefers-reduced-motion` media query via
+`useSyncExternalStore`. Components that only read it once on mount (the boot
+overlay, the agent's stream) call `matchMedia` directly and import
+`REDUCED_MOTION_QUERY` for the string, so they do not re-render on a setting
+change they would ignore anyway.
 
 ### Data — `src/lib/api`
 
@@ -120,3 +134,10 @@ against `design/reference.html`, gaps fixed, then commit.
   reference uses hairline borders and 4px radius. Reference wins.
 - No new libraries beyond Next.js + Tailwind + shadcn/ui without an ADR in
   `docs/decisions/`.
+- The shadcn **CLI** and `tw-animate-css` were removed from `dependencies` on
+  2026-10-05. `@import "shadcn/tailwind.css"` supplied only `scroll-fade-*`,
+  `shimmer*`, `no-scrollbar`, `accordion-*`, and `data-*` variants, none of
+  which the app uses; the app's only animation utility, `animate-pulse`, is
+  Tailwind v4 core. The CLI pulled 166 packages (babel, ts-morph, execa,
+  express, the MCP SDK) into a static portfolio. `shadcn` is still reachable
+  through `bunx shadcn@latest`, and `components.json` still configures it.
