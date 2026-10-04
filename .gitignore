@@ -45,3 +45,6 @@ Thumbs.db
 !.vscode/extensions.json
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+
+#Skills
+*.agents

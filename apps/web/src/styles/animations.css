@@ -135,11 +135,6 @@
   animation: dots 1.1s steps(1) infinite;
 }
 
-.reveal.in {
-  opacity: 1;
-  transform: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1;

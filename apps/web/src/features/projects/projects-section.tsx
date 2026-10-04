@@ -1,21 +1,10 @@
 "use client";
 
 import { Reveal } from "@/components/ui/reveal";
+import { SectionHead } from "@/components/ui/section-head";
 import { TaskCard } from "@/components/ui/task-card";
 import { listProjects } from "@/lib/api/projects";
 import { useAsync } from "@/lib/api/use-async";
-
-function SectionHead({ index, title }: { index: string; title: string }) {
-  return (
-    <div className="mb-[22px] flex items-center gap-3">
-      <span className="text-[0.9em] text-accent">{index}</span>
-      <h2 className="m-0 text-[clamp(1.05rem,2.4vw,1.35rem)] font-medium tracking-[0.02em] text-text">
-        {title}
-      </h2>
-      <span className="h-0 flex-1 border-t border-border" />
-    </div>
-  );
-}
 
 function Skeleton() {
   return (

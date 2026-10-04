@@ -12,25 +12,19 @@ export function StaticRain() {
   );
 }
 
-const SHOT_STYLE = [
-  "[animation-delay:0s,0s]",
-  "[animation-delay:6s,0s]",
-  "[animation-delay:12s,0s]",
-  "[animation-delay:18s,0s]",
-];
-
 function Shot({
   title,
-  delay,
+  className,
   children,
 }: {
   title: string;
-  delay: number;
+  /** Cross-fade offset, e.g. "[animation-delay:6s,0s]". */
+  className: string;
   children: ReactNode;
 }) {
   return (
     <div
-      className={`absolute inset-[-5%] opacity-0 bg-inset animate-[sfade_24s_linear_infinite,skb_24s_linear_infinite] ${SHOT_STYLE[delay]}`}
+      className={`absolute inset-[-5%] opacity-0 bg-inset animate-[sfade_24s_linear_infinite,skb_24s_linear_infinite] ${className}`}
     >
       <div className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-[12px] text-faint">
         <i className="h-2.5 w-2.5 rounded-full bg-[#2a323c]" />
@@ -48,7 +42,7 @@ export function Slideshow() {
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
       <div className="slideshow absolute inset-0">
-        <Shot title="agentflow — agent run" delay={0}>
+        <Shot title="agentflow — agent run" className="[animation-delay:0s,0s]">
           <div className="flex flex-col gap-2.5 px-[18px] py-4 text-[13px]">
             <span className="text-dim">
               <b className="font-normal text-accent">▸ </b>planning task graph…
@@ -62,7 +56,7 @@ export function Slideshow() {
             </span>
           </div>
         </Shot>
-        <Shot title="nimbus — analytics" delay={1}>
+        <Shot title="nimbus — analytics" className="[animation-delay:6s,0s]">
           <div className="grid grid-cols-3 gap-2.5 px-[18px] py-4">
             <div className="rounded-[var(--radius)] border border-border bg-panel p-2.5">
               <span className="block text-[18px] text-accent">1.4M</span>
@@ -78,7 +72,7 @@ export function Slideshow() {
             </div>
           </div>
         </Shot>
-        <Shot title="graphsage — fraud graph" delay={2}>
+        <Shot title="graphsage — fraud graph" className="[animation-delay:12s,0s]">
           <div className="p-3">
             <svg
               viewBox="0 0 300 190"
@@ -103,7 +97,7 @@ export function Slideshow() {
             </svg>
           </div>
         </Shot>
-        <Shot title="portfolio chat" delay={3}>
+        <Shot title="portfolio chat" className="[animation-delay:18s,0s]">
           <div className="flex flex-col gap-2.5 px-[18px] py-4 text-[12.5px]">
             <div className="max-w-[78%] self-end rounded-lg border border-border bg-accent-soft px-3 py-2 text-text">
               What does Manas work on?

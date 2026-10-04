@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ask as askApi, GREETING } from "@/lib/api/chat";
 import type { ChatMessage, ChatRole } from "@/lib/api/types";
+import { REDUCED_MOTION_QUERY } from "@/hooks/use-reduced-motion";
 
 const THINK_MS = 420;
 const WORD_MS = 24;
@@ -15,10 +16,8 @@ export function useScriptedAgent() {
   const [dismissed, setDismissed] = useState(false);
   const nextId = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const reduced = useRef(false);
 
   useEffect(() => {
-    reduced.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const pending = timers.current;
     return () => pending.forEach(clearTimeout);
   }, []);
@@ -39,7 +38,8 @@ export function useScriptedAgent() {
   };
 
   const stream = (id: number, full: string, onDone?: () => void) => {
-    if (reduced.current) {
+    // Read at call time, not render: only a callback consumes this.
+    if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
       update(id, { text: full, thinking: false });
       onDone?.();
       return;

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 
 /** Fade-up on scroll into view; instant under reduced motion. */
 export function Reveal({
@@ -12,11 +13,11 @@ export function Reveal({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced || !("IntersectionObserver" in window)) {
       el.classList.add("in");
       return;
@@ -32,7 +33,7 @@ export function Reveal({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [reduced]);
 
   return (
     <div ref={ref} className={cn("reveal", className)}>

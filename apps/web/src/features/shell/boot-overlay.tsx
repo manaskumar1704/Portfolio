@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { REDUCED_MOTION_QUERY } from "@/hooks/use-reduced-motion";
 
 const LINES = [
   "loading profile…",
@@ -17,7 +18,8 @@ export function BootOverlay() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Mount-only read, not a subscription: the sequence has already played.
+    const reduced = window.matchMedia(REDUCED_MOTION_QUERY).matches;
     if (reduced) {
       // deferred: state sync lives outside the effect body per lint rules
       const skip = setTimeout(() => setPhase("gone"), 0);

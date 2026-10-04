@@ -19,7 +19,7 @@ export function Composer({ value, busy, onValueChange, onSubmit }: ComposerProps
         e.preventDefault();
         if (!disabled) onSubmit();
       }}
-      className="mx-4 mb-4 mt-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-border-hi bg-inset px-3.5 py-2 transition-all duration-[var(--dur)] ease-[var(--ease)] focus-within:border-accent focus-within:shadow-[0_0_0_1px_rgba(255,176,0,.35)]"
+      className="mx-4 mb-4 mt-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-border-hi bg-inset px-3.5 py-2 transition-colors duration-[var(--dur)] ease-[var(--ease)] focus-within:border-accent"
     >
       <span aria-hidden="true" className="flex-none text-accent">
         &gt;
@@ -38,7 +38,7 @@ export function Composer({ value, busy, onValueChange, onSubmit }: ComposerProps
         autoCorrect="off"
         spellCheck={false}
         enterKeyHint="send"
-        className="min-w-0 flex-1 border-0 bg-transparent px-0 py-1.5 text-text outline-none placeholder:text-faint"
+        className="min-w-0 flex-1 border-0 bg-transparent px-0 py-1.5 text-text outline-none focus-visible:outline-none placeholder:text-faint"
       />
       <button
         type="submit"

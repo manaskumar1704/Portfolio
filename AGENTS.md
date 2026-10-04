@@ -60,6 +60,8 @@ corpus/      Markdown source of truth for RAG
 evals/       Golden set + runner
 mcp/         MCP server (imports from apps/api tools)
 docs/        AI_USAGE.md, decisions/ ADRs, frontend-plan.md
+scripts/     Dev tooling, not shipped
+  graphify/  pipeline.py, the stages behind /graphify
 graphify-out/ Generated graph, git-ignored, never edit
 ```
 
@@ -89,6 +91,12 @@ graphify explain "IngestionService"
 graphify update .    # re-run after structural changes (code only, no LLM)
 ```
 
+Building the graph is `/graphify .`. That custom command (`.opencode/commands/
+graphify.md`) drives `scripts/graphify/pipeline.py`, one stage per subcommand:
+`detect ast cache merge build health labels html finalize clean`. The upstream
+skill's bash heredocs do not survive PowerShell quoting, so use the script, not
+the skill's inline code.
+
 graphify is a **workflow experiment, not a necessity**. Say so honestly in
 `docs/AI_USAGE.md`.
 
@@ -110,6 +118,9 @@ complete prose.
   official docs or `--help` before relying on them.
 
 **TypeScript / frontend**
+- **React work:** load the `vercel-react-best-practices` skill before writing,
+  reviewing, or refactoring any React or Next.js code (components, hooks,
+  data fetching, rendering, bundle size, performance).
 - Functional components with typed props. Tailwind utility classes only (no
   inline styles, no CSS modules).
 - No file over ~150 lines; split components before that.

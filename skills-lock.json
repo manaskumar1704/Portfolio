@@ -36,6 +36,12 @@
       "sourceType": "github",
       "skillPath": "skills/neon-postgres/SKILL.md",
       "computedHash": "2e367b4b436500b7d28aba2b4318b1a2a4f7bacd94f1c045ba62751b95b578fe"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "6b526d013e28073246a36f99b529bc43745d30832ecfa8217b359c34f260ca6b"
     }
   }
 }

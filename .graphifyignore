@@ -37,6 +37,9 @@ evals/.cache/
 # Graphify's own output (self-reference; also in .gitignore)
 graphify-out/
 
+# Graphify pipeline tooling (self-reference; the graph describes the portfolio)
+scripts/graphify/
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

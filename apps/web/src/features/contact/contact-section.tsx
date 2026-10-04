@@ -3,6 +3,7 @@
 import { ContactRow } from "@/components/ui/contact-row";
 import { PanelCap } from "@/components/ui/panel-cap";
 import { Reveal } from "@/components/ui/reveal";
+import { SectionHead } from "@/components/ui/section-head";
 import { getContact } from "@/lib/api/contact";
 import { useAsync } from "@/lib/api/use-async";
 
@@ -13,13 +14,7 @@ export function ContactSection() {
   return (
     <section id="contact" className="scroll-mt-16 py-[clamp(44px,7vw,84px)]">
       <Reveal>
-        <div className="mb-[22px] flex items-center gap-3">
-          <span className="text-[0.9em] text-accent">02</span>
-          <h2 className="m-0 text-[clamp(1.05rem,2.4vw,1.35rem)] font-medium tracking-[0.02em] text-text">
-            contact
-          </h2>
-          <span className="h-0 flex-1 border-t border-border" />
-        </div>
+        <SectionHead index="02" title="contact" />
       </Reveal>
 
       <Reveal>
