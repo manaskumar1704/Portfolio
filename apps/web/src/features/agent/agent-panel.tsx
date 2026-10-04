@@ -1,0 +1,66 @@
+"use client";
+
+import { Composer } from "@/components/ui/composer";
+import { PanelCap } from "@/components/ui/panel-cap";
+import { AgentBackground } from "@/features/background/agent-background";
+import { Landing } from "./landing";
+import { Message } from "./message";
+import { useScriptedAgent } from "./use-scripted-agent";
+
+/** The agent console: background, panel, log, landing layer, composer. */
+export function AgentPanel() {
+  const { messages, value, busy, dismissed, onValueChange, send, dismiss } =
+    useScriptedAgent();
+
+  return (
+    <section
+      id="home"
+      className="relative flex min-h-[calc(100dvh-90px)] scroll-mt-16 overflow-hidden border-b border-border max-[640px]:min-h-[calc(100dvh-84px)]"
+    >
+      <AgentBackground />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 [background:radial-gradient(70%_60%_at_26%_40%,rgba(11,13,16,.42),rgba(11,13,16,.86)_72%),linear-gradient(180deg,rgba(11,13,16,.6),rgba(11,13,16,.82)_60%,var(--background))]"
+      />
+
+      <div className="relative z-[2] mx-auto flex w-[min(900px,100%)] flex-col px-[clamp(14px,4vw,40px)] py-[clamp(18px,3vw,34px)]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius)] border border-border bg-[linear-gradient(180deg,rgba(14,18,22,.82),rgba(11,15,19,.9))] backdrop-blur-[6px]">
+          <div className="px-3 pt-2">
+            <PanelCap label="ask manas" />
+          </div>
+
+          <div className="relative flex min-h-0 flex-1">
+            <div
+              role="log"
+              aria-live="polite"
+              aria-label="Conversation with Manas's agent"
+              className={`min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 p-3.5 overscroll-contain ${
+                dismissed
+                  ? "flex animate-[logIn_520ms_var(--ease)_both]"
+                  : "flex opacity-0"
+              }`}
+            >
+              {messages.map((m) => (
+                <Message key={m.id} message={m} />
+              ))}
+            </div>
+            <Landing dismissed={dismissed} onAsk={(q) => void send(q)} />
+          </div>
+
+          <div onFocusCapture={dismiss} onPointerDownCapture={dismiss}>
+            <Composer
+              value={value}
+              busy={busy}
+              onValueChange={onValueChange}
+              onSubmit={() => void send()}
+            />
+          </div>
+
+          <div className="px-3 pt-2">
+            <PanelCap variant="bottom" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
