@@ -1,0 +1,44 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+/dist
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# env — never commit secrets
+.env
+.env*.local
+!.env.example
+
+# graphify generated graph + cache
+graphify-out/
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+*.log
+
+# editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
