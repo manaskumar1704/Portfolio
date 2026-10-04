@@ -1,0 +1,122 @@
+# Frontend Plan — `apps/web`
+
+Source of truth for visuals: `design/reference.html` (OpenDesign export, project
+`dff69c9b-181c-40b9-8ee5-499cab192cd5`). It is a single-file vanilla
+HTML/CSS/JS prototype. The port preserves look, layout, and interactions; markup
+is restructured into React components, not copied verbatim.
+
+Design read: developer portfolio for hiring managers, terminal / dark-tech
+language, Next.js + Tailwind v4 + customized shadcn/ui.
+
+Dials: `DESIGN_VARIANCE 6`, `MOTION_INTENSITY 5`, `VISUAL_DENSITY 4`.
+
+## 1. Design tokens
+
+Defined once in `src/styles/globals.css` as CSS variables, consumed through
+Tailwind theme tokens (`@theme` / `--color-*`). Components never hardcode hex.
+
+### Color
+
+| Token | Value | Use |
+|---|---|---|
+| `--background` | `#0b0d10` | page background |
+| `--panel` | `#0e1216` | panel fill |
+| `--panel-2` | `#121820` | raised fill, status tiles |
+| `--inset` | `#0a0c0f` | inset wells (composer, screenshots) |
+| `--border` | `#232a33` | hairlines |
+| `--border-hi` | `#333d49` | emphasized hairlines |
+| `--text` | `#e8e8e8` | primary text |
+| `--dim` | `#9aa4af` | secondary text |
+| `--faint` | `#66717d` | tertiary text |
+| `--accent` | `#ffb000` | single accent (amber) |
+| `--accent-soft` | `rgba(255,176,0,.14)` | accent washes |
+| `--ok` | `#3fb950` | success / completed |
+| `--err` | `#ff6b6b` | error |
+
+One accent, one palette. Light mode is out of scope: the reference is a
+dark-terminal brand; `prefers-color-scheme` flipping would break it.
+
+### Type
+
+- Family: JetBrains Mono via `next/font` (`next/font/google`, weights 400/500/700),
+  replacing the prototype's Google Fonts `<link>`.
+- Base size: `clamp(14px, .35vw + 13px, 15.5px)`, line-height `1.65`.
+
+### Space / shape / motion
+
+- Spacing unit `8px`, radius `4px` (single radius scale), container `1000px`.
+- `--dur: 200ms`, `--ease: cubic-bezier(.2,.7,.3,1)`.
+- Elevation: no drop shadows; borders + `accent-soft` glows only.
+
+## 2. Component inventory
+
+### Primitives — `src/components/ui` (props in, JSX out)
+
+| Component | Notes |
+|---|---|
+| `panel-cap` | `┌─ label ─── ┐` box-drawing caption, top/bottom variants |
+| `suggestion-chip` | `[ ./projects ]` query button |
+| `composer` | `> input + send` bar; disabled / hot (agent busy) states |
+| `task-card` | project card: name, meta, status, desc, stack |
+| `status-mark` | `✔ / ◐ / ◌` + label, `ok / accent / dim` color |
+| `contact-row` | `key  value` row |
+| `cursor` | blinking block caret |
+| `reveal` | IntersectionObserver fade-up wrapper (client leaf) |
+
+### Features — `src/features/<name>` (components + hooks)
+
+| Feature | Contents |
+|---|---|
+| `agent` | `AgentPanel`, `LandingLayer` (typewriter intro + suggestion chips), `MessageLog`, `useScriptedAgent` (busy, stream, greeting, scripted replies) |
+| `background` | `CodeRain` (canvas client leaf, rAF with cleanup, static fallback under reduced motion), `Slideshow` (4 fake project shots) |
+| `shell` | `Topbar`, `Statusbar` (clock), `BootOverlay` (skippable), `CrtOverlay`, `RevealOnScroll` |
+| `projects` | `TaskCardGrid` from fixtures |
+| `contact` | `contact.sh` panel from fixtures |
+
+### Data — `src/lib/api`
+
+Typed fixtures only for now (`chat.ts`, `projects.ts`, `contact.ts`), shapes
+match the future FastAPI responses so the swap touches only this folder:
+
+- `chat.ts`: `ask(text) -> Promise<{ reply: string }>` (scripted matcher,
+  mirrors prototype `REPLIES` + `FALLBACK`).
+- `projects.ts`: `listProjects() -> Promise<Project[]>`.
+- `contact.ts`: `getContact() -> Promise<Contact>`.
+
+Every data-driven component handles loading / empty / error.
+
+## 3. Routes
+
+| Route | Content |
+|---|---|
+| `/` | single page: `#home` agent console, `#projects` task cards, `#contact` panel, topbar + status bar |
+| `/health` | static ok payload, **no DB touch** (Neon scale-to-zero) |
+
+Anchor navigation (`agent` / `projects` / `contact`) matches the prototype;
+the site is one page in v1.
+
+## 4. Build slices
+
+1. Init: Next.js (App Router, TS, Tailwind v4) in `apps/web`, shadcn init,
+   `next/font`, tokens in `globals.css`. Verify `bun dev`.
+2. Shell: layout, `Topbar`, `Statusbar`, `BootOverlay`, `CrtOverlay`.
+3. Primitives: `panel-cap`, `suggestion-chip`, `composer`, `task-card`,
+   `status-mark`, `contact-row`, `cursor`, `reveal`.
+4. Agent feature: panel + landing typewriter + scripted stream + `?bg=`
+   background switcher.
+5. Projects + contact features from fixtures.
+6. `/health`, cleanup (no `console.log`, no unused imports, files < 150 lines).
+
+Each slice: `playwright-cli` screenshots at 1440x900 and 390x844 compared
+against `design/reference.html`, gaps fixed, then commit.
+
+## 5. Known tensions (recorded, not silently "fixed")
+
+- `design-taste-frontend` bans em-dashes, `·` separators, and `01 / 02`
+  section eyebrows; the reference uses all three. Fidelity wins for v1
+  (match the approved design); copy cleanup goes through `docs/decisions/`
+  before it changes what you already signed off.
+- `high-end-visual-design` prescribes double-bezel cards and pill CTAs; the
+  reference uses hairline borders and 4px radius. Reference wins.
+- No new libraries beyond Next.js + Tailwind + shadcn/ui without an ADR in
+  `docs/decisions/`.

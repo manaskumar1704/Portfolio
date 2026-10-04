@@ -36,6 +36,9 @@ graphify-out/
 Thumbs.db
 *.log
 
+# verification screenshots (playwright)
+/shots/
+
 # editor
 .idea/
 .vscode/*
