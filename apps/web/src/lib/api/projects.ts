@@ -1,6 +1,6 @@
 import type { Project } from "./types";
 
-const PROJECTS: Project[] = [
+export const PROJECTS: Project[] = [
   {
     name: "AgentFlow",
     status: "completed",

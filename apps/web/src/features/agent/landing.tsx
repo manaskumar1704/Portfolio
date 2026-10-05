@@ -4,11 +4,15 @@ import { useState } from "react";
 import { SuggestionChip } from "@/components/ui/suggestion-chip";
 import { Typewriter } from "@/components/ui/typewriter";
 
+/**
+ * Shortcuts that open a path, the way an assistant's welcome screen does. Each
+ * label is a real route, so middle-click and Back behave.
+ */
 const SUGGESTIONS = [
-  { label: "./projects", query: "Show me your projects" },
-  { label: "./resume", query: "Walk me through your resume" },
-  { label: "./contact", query: "How can I contact you?" },
-  { label: "./skills", query: "What's your tech stack?" },
+  { label: "./projects", href: "/projects" },
+  { label: "./resume", href: "/resume.md" },
+  { label: "./contact", href: "/contact.md" },
+  { label: "./skills", href: "/skills.md" },
 ];
 
 /**
@@ -36,11 +40,10 @@ const GAP_MS = 170;
 
 type LandingProps = {
   dismissed: boolean;
-  onAsk: (query: string) => void;
 };
 
-/** Welcome layer: typewriter intro + suggestion chips. Zooms out on dismissal. */
-export function Landing({ dismissed, onAsk }: LandingProps) {
+/** Welcome layer: typewriter intro + path shortcuts. Zooms out on dismissal. */
+export function Landing({ dismissed }: LandingProps) {
   const [step, setStep] = useState(0);
   const [gone, setGone] = useState(false);
 
@@ -123,8 +126,7 @@ export function Landing({ dismissed, onAsk }: LandingProps) {
             <SuggestionChip
               key={s.label}
               label={s.label}
-              query={s.query}
-              onAsk={onAsk}
+              href={s.href}
             />
           ))}
         </div>

@@ -1,4 +1,5 @@
 import type { ChatReply } from "./types";
+import { RESUME } from "./fs";
 
 const REPLIES: { keywords: string[]; reply: string }[] = [
   {
@@ -23,11 +24,7 @@ const REPLIES: { keywords: string[]; reply: string }[] = [
       "job",
     ],
     reply:
-      "Manas — GenAI & Full-Stack Engineer.\n\n" +
-      "2023–now   Senior GenAI Engineer · Stealth AI Lab\n" +
-      "2021–2023  Full-Stack Engineer · Fintech Co\n" +
-      "2019–2021  Software Engineer · Software Studio\n\n" +
-      "Focus: grounded RAG, evals, and full-stack delivery. For the full CV, email him — see `contact`.",
+      RESUME + "\n\nFor the full CV, email him — see `contact.md`.",
   },
   {
     keywords: [

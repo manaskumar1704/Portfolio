@@ -8,7 +8,13 @@ import { REDUCED_MOTION_QUERY } from "@/hooks/use-reduced-motion";
 const THINK_MS = 420;
 const WORD_MS = 24;
 
-/** Scripted agent: keyword replies from lib/api, streaming render, landing dismissal. */
+/**
+ * The scripted agent behind the composer: keyword replies from `lib/api`,
+ * word-by-word streaming render, and the greeting on first interaction.
+ *
+ * Navigation is not here. That is the URL's job, driven by links in the
+ * listings, the topbar and the landing shortcuts.
+ */
 export function useScriptedAgent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [value, setValue] = useState("");

@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Composer } from "@/components/ui/composer";
 import { PanelCap } from "@/components/ui/panel-cap";
 import { AgentBackground } from "@/features/background/agent-background";
@@ -7,15 +8,25 @@ import { Landing } from "./landing";
 import { Message } from "./message";
 import { useScriptedAgent } from "./use-scripted-agent";
 
-/** The agent console: background, panel, log, landing layer, composer. */
+/**
+ * The agent console: background, panel, log, landing layer, composer.
+ *
+ * Full height on home, where it is the hero. Shorter elsewhere, so the folder
+ * or file the visitor just `cd`-ed into is visible without scrolling.
+ */
 export function AgentPanel() {
   const { messages, value, busy, dismissed, onValueChange, send, dismiss } =
     useScriptedAgent();
+  const isHome = usePathname() === "/";
 
   return (
     <section
       id="home"
-      className="relative flex min-h-[calc(100dvh-90px)] scroll-mt-16 overflow-hidden border-b border-border max-[640px]:min-h-[calc(100dvh-84px)]"
+      className={`relative flex scroll-mt-16 overflow-hidden border-b border-border ${
+        isHome
+          ? "min-h-[calc(100dvh-90px)] max-[640px]:min-h-[calc(100dvh-84px)]"
+          : "min-h-[min(420px,52dvh)]"
+      }`}
     >
       <AgentBackground />
       <div
@@ -35,7 +46,7 @@ export function AgentPanel() {
               aria-live="polite"
               aria-label="Conversation with Manas's agent"
               className={`min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 p-3.5 overscroll-contain ${
-                dismissed
+                dismissed || !isHome
                   ? "flex animate-[logIn_520ms_var(--ease)_both]"
                   : "flex opacity-0"
               }`}
@@ -44,7 +55,7 @@ export function AgentPanel() {
                 <Message key={m.id} message={m} />
               ))}
             </div>
-            <Landing dismissed={dismissed} onAsk={(q) => void send(q)} />
+            {isHome ? <Landing dismissed={dismissed} /> : null}
           </div>
 
           <div onFocusCapture={dismiss} onPointerDownCapture={dismiss}>

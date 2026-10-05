@@ -55,7 +55,7 @@ dark-terminal brand; `prefers-color-scheme` flipping would break it.
 | Component | Notes |
 |---|---|
 | `panel-cap` | `┌─ label ─── ┐` box-drawing caption, top/bottom variants |
-| `suggestion-chip` | `[ ./projects ]` query button |
+| `suggestion-chip` | `[ ./projects ]` shortcut, a real `Link` to a path |
 | `composer` | `> input + send` bar; disabled / hot (agent busy) states |
 | `task-card` | project card: name, meta, status, desc, stack |
 | `status-mark` | `✔ / ◐ / ◌` + label, `ok / accent / dim` color |
@@ -73,11 +73,12 @@ must wait for the previous one.
 
 | Feature | Contents |
 |---|---|
-| `agent` | `AgentPanel`, `LandingLayer` (typewriter intro + suggestion chips), `MessageLog`, `useScriptedAgent` (busy, stream, greeting, scripted replies) |
+| `agent` | `AgentPanel` (console: full height on `/`, compact elsewhere so the path just opened is visible), `Landing` (typewriter intro + path shortcuts), `Message`, `useScriptedAgent` (busy, stream, greeting, scripted replies) |
 | `background` | `CodeRain` (canvas client leaf, rAF with cleanup, static fallback under reduced motion), `Slideshow` (4 fake project shots) |
-| `shell` | `Topbar`, `Statusbar` (clock), `BootOverlay` (skippable), `CrtOverlay`, `RevealOnScroll` |
-| `projects` | `TaskCardGrid` from fixtures |
-| `contact` | `contact.sh` panel from fixtures |
+| `shell` | `Topbar` (route links), `Statusbar` (clock + current path), `BootOverlay` (skippable), `CrtOverlay` |
+| `projects` | `ProjectsSection` from fixtures |
+| `contact` | `ContactSection` from fixtures |
+| `fs` | `FsView` (directory listing / file body / not-found message), `ListingRow` (one listing line, a real link) |
 
 ### Hooks — `src/hooks`
 
@@ -87,10 +88,28 @@ overlay, the agent's stream) call `matchMedia` directly and import
 `REDUCED_MOTION_QUERY` for the string, so they do not re-render on a setting
 change they would ignore anyway.
 
+### Content — `src/lib/api/fs.ts`
+
+One typed tree, `FsNode = FsDir | FsFile`, with three exports and no React:
+
+- `FS` — the tree, built from the project and contact fixtures plus the `about`,
+  `skills` and `resume` prose, so none of that text exists twice.
+- `allPaths()` — every path below the root, feeding `generateStaticParams`.
+- `getNode(path)` — walks the tree one segment at a time, `null` when absent.
+  Ignores empty segments, so a trailing slash in a shared link still resolves.
+
+It mirrors the shape a backend `GET /fs` would return, so the swap touches only
+this file. `getNode` is the one piece of logic worth testing, so `fs.test.ts`
+covers it.
+
+`chat.ts` imports the `RESUME` body from here for its scripted answer, which is
+why the `# resume` heading lives in the file rather than in the shared string: a
+chat reply should not open with a markdown heading.
+
 ### Data — `src/lib/api`
 
-Typed fixtures only for now (`chat.ts`, `projects.ts`, `contact.ts`), shapes
-match the future FastAPI responses so the swap touches only this folder:
+Typed fixtures only for now (`chat.ts`, `projects.ts`, `contact.ts`, `fs.ts`),
+shapes match the future FastAPI responses so the swap touches only this folder:
 
 - `chat.ts`: `ask(text) -> Promise<{ reply: string }>` (scripted matcher,
   mirrors prototype `REPLIES` + `FALLBACK`).
@@ -103,11 +122,22 @@ Every data-driven component handles loading / empty / error.
 
 | Route | Content |
 |---|---|
-| `/` | single page: `#home` agent console, `#projects` task cards, `#contact` panel, topbar + status bar |
+| `/` | console + `#projects` task cards + `#contact` panel |
+| `/[...path]` | catch-all: one fs node per URL. `generateStaticParams` prerenders all 10 valid paths |
 | `/health` | static ok payload, **no DB touch** (Neon scale-to-zero) |
 
-Anchor navigation (`agent` / `projects` / `contact`) matches the prototype;
-the site is one page in v1.
+Navigation is by link, never by typed command. The visitor moves through the
+listing rows, the topbar and the landing shortcuts, all real `Link`s, so
+middle-click, keyboard and the Back button behave. `.md` stays in the URL so the
+URL, the listing and the file are one vocabulary with nothing to translate.
+
+An unknown path renders `error: no file at <path>` rather than a 404, which
+means it answers HTTP 200; `dynamicParams` is left at its default on purpose.
+
+`AgentPanel` and the chrome live in the root layout, not in the pages. The
+layout does not unmount on navigation, so moving between paths keeps the
+conversation. The panel is full height on `/` and compact elsewhere, so the
+folder or file that was just opened is visible without scrolling.
 
 ## 4. Build slices
 
@@ -120,6 +150,10 @@ the site is one page in v1.
    background switcher.
 5. Projects + contact features from fixtures.
 6. `/health`, cleanup (no `console.log`, no unused imports, files < 150 lines).
+7. URL-synced browsing: `lib/api/fs.ts` + `getNode` tests, then the catch-all
+   route, then moving the console into the layout. Navigation is by link only —
+   an earlier pass added a shell command registry (`ls`/`cd`/`cat`) and was
+   removed as a digression from the assistant-TUI concept.
 
 Each slice: `playwright-cli` screenshots at 1440x900 and 390x844 compared
 against `design/reference.html`, gaps fixed, then commit.
