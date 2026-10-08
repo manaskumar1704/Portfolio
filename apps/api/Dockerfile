@@ -2,7 +2,11 @@
 # carries no compiler and no uv cache. Render free builds from this on every
 # push, so build minutes are worth not wasting.
 
-FROM ghcr.io/astral-sh/uv:0.12 AS builder
+# The `-python3.12-bookworm-slim` variant, not the default. The default uv
+# image is distroless and has no /bin/sh, so every RUN line fails at container
+# init. The slim variant is the same Debian base as the runtime stage, so the
+# wheels resolve and link identically.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -41,7 +45,7 @@ EXPOSE 8000
 
 # Not /health. This endpoint does not touch the database, so Render's health
 # check cannot hold Neon out of scale-to-zero.
-HEALTHCHECK --interval=5min --timeout=5s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=300s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
