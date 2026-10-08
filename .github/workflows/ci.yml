@@ -1,0 +1,51 @@
+name: ci
+
+# Runs on every push and PR. Phase 1 only: no database, no API keys, no
+# network. Later phases add jobs rather than widening this one, so a green tick
+# always means the same thing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # uv is the lockfile owner: `uv sync --locked` fails if pyproject.toml and
+      # uv.lock disagree, so a stale lock is a red build instead of a surprise
+      # on Render.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --locked --dev
+
+      - name: Lint
+        run: uvx ruff check .
+
+      - name: Format check
+        run: uvx ruff format --check .
+
+      - name: Tests
+        run: uv run pytest -q
+        env:
+          # Explicitly empty. A developer's .env must never be the thing that
+          # makes CI pass.
+          LOG_LEVEL: WARNING

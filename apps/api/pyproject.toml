@@ -1,0 +1,30 @@
+[project]
+name = "portfolio-api"
+version = "0.1.0"
+description = "FastAPI backend for the chat-first AI portfolio."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.34",
+  "pydantic>=2.10",
+  "pydantic-settings>=2.7",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "httpx>=0.28",
+]
+
+# Not a distributable library: `app` is imported by path from the working
+# directory, so uvicorn runs with no install step.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `app` is imported by path, not installed, so tests need the project root on
+# sys.path. This is what `[tool.uv] package = false` implies.
+pythonpath = ["."]
+asyncio_mode = "auto"

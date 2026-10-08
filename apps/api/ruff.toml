@@ -1,0 +1,11 @@
+# Ruff config lives here rather than in pyproject.toml so a tool change is one
+# file instead of a diff through the project's dependency declarations.
+
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+# Long lines in prose are easier to read than wrapped ones, and line-length
+# already covers the mechanical case.
+ignore = ["E501"]
