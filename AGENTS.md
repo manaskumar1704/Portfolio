@@ -1,6 +1,7 @@
 # Agents & Tech Stack Lock
 
-Project: chat-first AI portfolio. Spec: `.docs/INITIAL_BUILD_PROMPT.md`.
+Project: chat-first AI portfolio. Spec: this file, plus the phase plan the
+user approved in session. Backend builds in slices, one phase per prompt.
 
 ## 🔒 Locked Tech Stack
 
@@ -11,9 +12,9 @@ Project: chat-first AI portfolio. Spec: `.docs/INITIAL_BUILD_PROMPT.md`.
 |---|---|
 | Frontend | Next.js (App Router), shadcn/ui, Tailwind, Bun, Vercel |
 | UI vibe | Terminal / Claude Code-like, monospace-forward |
-| API | FastAPI, managed with uv, Docker, Render free web service |
-| Database | Neon Postgres + pgvector. **Not** Render Postgres (expires in 30 days) |
-| LLM (app runtime) | Claude API, `claude-haiku-4-5-20251001` |
+| API | FastAPI, managed with uv, Docker, **Render free web service** |
+| Database | **Neon** Postgres + pgvector. **Not** Render Postgres (expires in 30 days) |
+| LLM (app runtime) | Groq (`gpt-oss-120b`) first, Gemini fallback. Behind an `LLMClient` interface |
 | Embeddings | Small local model (fastembed), must fit 512 MB RAM |
 | Evals | pytest runner in `evals/` |
 | Tracing | Langfuse |
@@ -21,8 +22,9 @@ Project: chat-first AI portfolio. Spec: `.docs/INITIAL_BUILD_PROMPT.md`.
 | MCP | Official Python MCP SDK |
 | CI | GitHub Actions |
 
-No LangChain. Native Claude tool-use API. Tool-calling is the spine; RAG is one
-tool; MCP is a separate showcase layer that **imports** from `apps/api`, never copies.
+No LangChain. Native provider tool-calling, behind `LLMClient`. Tool-calling is
+the spine; RAG is one tool; MCP is a separate showcase layer that **imports**
+from `apps/api`, never copies.
 
 ## 🎨 Frontend
 
@@ -54,7 +56,14 @@ apps/web     Next.js frontend
   src/features/<name>  feature components + hooks
   src/lib/api          data access layer (mocked for now)
   src/styles           tokens: colors, spacing, type
-apps/api     FastAPI backend (routers/ services/ tools/ core/)
+apps/api     FastAPI backend
+  app/core       config, logging, tracing, ratelimit, guardrails
+  app/api        routers only; no business logic
+  app/services   capabilities as plain functions (rag, github, contact, llm)
+  app/tools      thin wrappers exposing services to the model + MCP
+  app/db         pool, session, models, queries
+  app/schemas    Pydantic request/response models
+  ingest/        corpus -> chunk -> embed -> upsert (batch, not served)
 design/      Open Design export, reference only
 corpus/      Markdown source of truth for RAG
 evals/       Golden set + runner
@@ -86,7 +95,7 @@ For `apps/web` while it is small, plain grep is fine.
 
 ```
 graphify query "how does the chat tool loop work?"
-graphify path "search_portfolio" "send_message"
+graphify path "search_portfolio" "draft_message"
 graphify explain "IngestionService"
 graphify update .    # re-run after structural changes (code only, no LLM)
 ```
@@ -112,6 +121,10 @@ complete prose.
 - Never commit secrets. `.env` is git-ignored; ship `.env.example`.
 - Free tiers only. Add `/health` that does **not** touch the DB (Neon must be
   able to scale to zero).
+- **Email is never a tool.** The model may call `draft_message` to write a
+  `pending` row. Sending is a plain HTTP route requiring an unguessable
+  `approval_token` plus a matching originating IP. The model has no send tool
+  and no way to read the token.
 - Remove unused imports, variables, and `console.log` before committing.
 - **Do not guess.** Batch questions to the user; do not ask one at a time.
 - Verify third-party facts (free-tier limits, package names, CLI flags) against
