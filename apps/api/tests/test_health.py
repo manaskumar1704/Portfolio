@@ -7,7 +7,11 @@ The test asserts the absence of a connection, which is easy to break by accident
 in P2 and impossible to notice without watching the bill.
 """
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app.core.config import get_settings
+from app.main import app
 
 
 def test_health_is_ok(client: TestClient) -> None:
@@ -30,10 +34,41 @@ def test_health_does_not_touch_the_database(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
 
 
-def test_ready_reports_without_a_database(client: TestClient) -> None:
-    response = client.get("/ready")
-    assert response.status_code == 200
-    assert response.json() == {"db": "not configured"}
+async def test_ready_reports_a_broken_database() -> None:
+    """An unreachable database is a 503, not a 200 that lies.
+
+    Port 1 refuses instantly, so this does not wait on a real timeout.
+    """
+    from app.db import pool
+
+    settings = get_settings()
+    settings.database_url = "postgresql+asyncpg://nobody:nobody@127.0.0.1:1/none"
+    await pool.setup(settings)
+    try:
+        with TestClient(app) as broken_client:
+            response = broken_client.get("/ready")
+        assert response.status_code == 503
+        assert response.json() == {"db": "unavailable"}
+    finally:
+        await pool.teardown()
+
+
+async def test_ready_succeeds_against_a_live_database() -> None:
+    """The 503 branch above must not have made `/ready` always fail."""
+    from app.db import pool
+
+    settings = get_settings()
+    if not settings.database_url:
+        pytest.skip("DATABASE_URL not set")
+
+    await pool.setup(settings)
+    try:
+        async with pool.session_scope() as session:
+            from sqlalchemy import text
+
+            assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
+    finally:
+        await pool.teardown()
 
 
 def test_request_id_is_echoed(client: TestClient) -> None:

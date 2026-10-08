@@ -1,0 +1,158 @@
+"""Table definitions.
+
+Four tables, and only four, because nothing else exists yet. `chunks` is the
+RAG corpus, `messages` is the draft-then-approve inbox, and the two log tables
+record what happened. They are plain SQLAlchemy models rather than an ORM used
+by the services, because Alembic autogenerates the migration from them and
+nothing else needs them.
+
+The vector column is `vector(384)`, matching the local embedding model's output.
+A query embedding from a different model has no meaningful distance to these,
+which is why the model name is a setting and the dimension is asserted in tests.
+"""
+
+from datetime import datetime
+
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    Identity,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+# Nearest-neighbour index over the embeddings is declared on `Chunk` itself, in
+# its `__table_args__`. It has to live in the metadata, not only in the
+# migration's raw SQL: an index that exists in the database but not in the
+# models makes `alembic check` and every future autogenerate propose dropping
+# it, which is how a hand-written index quietly disappears.
+#
+# `lakebase_ann` is Neon's index access method, installed with the
+# lakebase_vector extension. `vector_cosine_ops` pairs with the `<=>` distance
+# operator used in the retrieval query; an operator class and an operator that
+# disagree is the quiet-wrong-answer bug, because the query still runs and just
+# returns worse matches.
+
+
+class Chunk(Base):
+    """One slice of a corpus document, with its embedding.
+
+    The unique constraint on (source_path, chunk_index) is what makes re-running
+    the ingest idempotent. Without it, every ingest of an edited document adds
+    a second copy of the same text and retrieval starts returning duplicates.
+    """
+
+    __tablename__ = "chunks"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    source_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    heading: Mapped[str] = mapped_column(String(512), default="")
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(384), nullable=False)
+    # Stored so a chunk can be budgeted into a prompt without re-tokenising it.
+    token_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("source_path", "chunk_index", name="uq_chunks_source_index"),
+        # `lists = 'auto'` would let the index size its own IVF partition layout;
+        # the default suits a corpus this small, where the planner prefers an
+        # exact scan anyway. This index is insurance for growth, not a speedup
+        # on day one.
+        Index(
+            "ix_chunks_embedding_ann",
+            "embedding",
+            postgresql_using="lakebase_ann",
+            postgresql_with={"build_mode": "standard"},
+        ),
+    )
+
+
+class Message(Base):
+    """A recruiter's message, written before it is sent.
+
+    The status starts at `pending`; only `confirmed` means Resend was called.
+    `approval_token_hash` is a SHA-256 of the token handed to the browser, so a
+    leaked database row cannot be replayed to send mail.
+    """
+
+    __tablename__ = "messages"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    # server_default as well as the Python default. The column is NOT NULL, so
+    # any writer that is not the ORM — a psql session, a future admin script,
+    # a migration — would hit a constraint violation without it.
+    status: Mapped[str] = mapped_column(
+        String(20), default="pending", server_default="pending", nullable=False
+    )
+    approval_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Bound at draft time and re-checked on approval. Without it, anyone who
+    # learns a message id could confirm a stranger's draft.
+    origin_ip: Mapped[str] = mapped_column(String(45), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when Resend returns an id, so a failed send is diagnosable.
+    provider_id: Mapped[str | None] = mapped_column(String(255))
+
+    __table_args__ = (
+        # Phase 6 reads the inbox by status. Without this it is a sequential scan
+        # of every message ever drafted.
+        Index("ix_messages_status", "status"),
+    )
+
+
+class IngestRun(Base):
+    """One pass of the corpus importer.
+
+    Records which embedding model produced the rows. Rows written by two
+    different models are not comparable, so this is the thing you check first
+    when retrieval quality changes without the corpus changing.
+    """
+
+    __tablename__ = "ingest_runs"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    embedding_model: Mapped[str] = mapped_column(String(255), nullable=False)
+    embedding_dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class ToolCallLog(Base):
+    """One row per tool invocation.
+
+    `latency_ms` is here because the interesting production failure is rarely
+    an exception; it is a tool that quietly got ten times slower.
+    """
+
+    __tablename__ = "tool_call_log"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    ok: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    # Arguments with secrets stripped: the raw dict can contain an API key.
+    arguments: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # The evals and any abuse investigation both read this newest-first.
+        Index("ix_tool_call_log_created_at", "created_at"),
+    )

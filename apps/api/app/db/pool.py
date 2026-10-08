@@ -1,0 +1,138 @@
+"""The async engine, created once.
+
+Neon's pooled endpoint fronts Postgres with PgBouncer, so this pool holds a
+handful of asyncpg connections and Neon decides how many real backends that
+becomes. Pointing at the direct endpoint instead would consume one of the 97
+usable Postgres connections per process, which is how a free-tier project ends
+up refusing connections at inconvenient times.
+
+`pool_pre_ping` earns its place on Neon specifically: the compute suspends
+after five idle minutes, and a pooled connection that was open across that
+suspension is dead. Without the ping, the first request after a quiet spell
+gets an `InterfaceError` instead of an answer.
+"""
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+from app.core.config import Settings
+from app.core.logging import get_logger
+
+log = get_logger(__name__)
+
+_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker | None = None
+
+
+def normalize_async_url(url: str) -> str:
+    """Adapt a Neon connection string to what asyncpg will accept.
+
+    The Neon console hands out
+    `?sslmode=require&channel_binding=require`. Both spellings are wrong for the
+    async path, for the same reason: SQLAlchemy splits the query string into
+    keyword arguments and passes them straight to `asyncpg.connect()`, which
+    knows neither name and raises `TypeError: connect() got an unexpected
+    keyword argument`.
+
+    Raw asyncpg is happy with the original URL, because it parses the query
+    string itself. That is not available here, so the string is rewritten:
+
+    - `sslmode=require` becomes `ssl=require`, which is asyncpg's spelling.
+    - `channel_binding` is dropped. asyncpg negotiates channel binding on its
+      own when TLS is required, so the instruction is redundant, and passing
+      it through is what breaks the connection.
+
+    The synchronous URL keeps both, because psycopg does understand them.
+    """
+    url = url.replace("sslmode=", "ssl=")
+    return _drop_param(url, "channel_binding")
+
+
+def _drop_param(url: str, name: str) -> str:
+    """Remove one query parameter, keeping the rest of the string intact."""
+    if f"{name}=" not in url:
+        return url
+    head, _, query = url.partition("?")
+    kept = [pair for pair in query.split("&") if pair and not pair.startswith(f"{name}=")]
+    return f"{head}?{'&'.join(kept)}" if kept else head
+
+
+def create_engine(settings: Settings) -> AsyncEngine:
+    """Build the engine. Called once from the lifespan, not at import."""
+    return create_async_engine(
+        normalize_async_url(settings.database_url),
+        pool_size=5,
+        # The free plan has 0.25 CU (about 1 GB). Five connections is generous
+        # for a portfolio; more just holds memory the container does not have.
+        max_overflow=0,
+        pool_pre_ping=True,
+        # Neon reaps idle backends. Recycling at 10 minutes keeps the pool
+        # inside the window where connections are still alive.
+        pool_recycle=600,
+        echo=False,
+    )
+
+
+def get_engine() -> AsyncEngine:
+    if _engine is None:
+        raise RuntimeError("engine not initialised; call setup() in the lifespan")
+    return _engine
+
+
+def get_session_factory() -> async_sessionmaker:
+    if _session_factory is None:
+        raise RuntimeError("session factory not initialised; call setup() in the lifespan")
+    return _session_factory
+
+
+async def setup(settings: Settings) -> None:
+    global _engine, _session_factory
+    if _engine is not None:
+        # Idempotent on purpose. The lifespan calls it on every boot, and a
+        # second call would replace the engine out from under any request still
+        # holding a session from the first one.
+        return
+    _engine = create_engine(settings)
+    _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+    log.info("database engine ready")
+
+
+async def teardown() -> None:
+    """Close every pooled connection. Called on shutdown.
+
+    Render replaces the container on redeploy, so a leaked socket only wastes
+    the old container's life. But without this, a test that creates and drops
+    the engine repeatedly leaks file handles until the process complains.
+    """
+    global _engine, _session_factory
+    if _engine is not None:
+        await _engine.dispose()
+        log.info("database engine disposed")
+    _engine = None
+    _session_factory = None
+
+
+@asynccontextmanager
+async def session_scope() -> AsyncIterator[AsyncSession]:
+    """A session that commits on success and rolls back on any exception.
+
+    Used as `async with session_scope() as session:`. The commit is on the way
+    out of the block, so a body that adds rows and returns early still writes
+    them, and a body that raises leaves nothing behind.
+    """
+    session = get_session_factory()()
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()

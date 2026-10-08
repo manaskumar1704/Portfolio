@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import health
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger, request_id
+from app.db import pool as db
 
 log = get_logger(__name__)
 settings = get_settings()
@@ -30,10 +31,20 @@ async def lifespan(app: FastAPI):
         "startup",
         extra={"env": settings.app_env, "llm": settings.llm_provider},
     )
-    yield
-    # P2 closes the database pool here. P3 closes the HTTP client. Closing
-    # connections on the way out is what keeps a redeploy from leaking sockets
-    # into Render's ephemeral filesystem until the container is replaced.
+    if settings.database_url:
+        await db.setup(settings)
+    else:
+        # Local development and CI both run without a database. The app starts
+        # so `/health` still answers; anything that needs Postgres fails loudly
+        # on its own endpoint rather than taking the whole service down.
+        log.warning("DATABASE_URL is not set; database-backed endpoints are unavailable")
+    try:
+        yield
+    finally:
+        # P3 closes the LLM HTTP client here. Closing connections on the way out
+        # is what keeps a redeploy from leaking sockets into Render's ephemeral
+        # filesystem until the container is replaced.
+        await db.teardown()
 
 
 app = FastAPI(

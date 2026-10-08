@@ -1,8 +1,12 @@
 name: ci
 
-# Runs on every push and PR. Phase 1 only: no database, no API keys, no
-# network. Later phases add jobs rather than widening this one, so a green tick
-# always means the same thing.
+# Runs on every push and PR.
+#
+# Two jobs, deliberately separate. `test` proves the app is sound with no
+# credentials at all. `integration` proves it actually talks to Postgres and
+# that pgvector is installed, using a real Neon project. Keeping them apart
+# means a fork's PR cannot run the integration job, because fork secrets are
+# not available to untrusted code.
 
 on:
   push:
@@ -23,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # uv is the lockfile owner: `uv sync --locked` fails if pyproject.toml and
+      # uv owns the lockfile: `uv sync --locked` fails if pyproject.toml and
       # uv.lock disagree, so a stale lock is a red build instead of a surprise
       # on Render.
       - name: Install uv
@@ -44,8 +48,43 @@ jobs:
         run: uvx ruff format --check .
 
       - name: Tests
+        # No DATABASE_URL: integration tests are deselected by default in
+        # pyproject.toml, so this proves the app runs with no credentials.
         run: uv run pytest -q
         env:
-          # Explicitly empty. A developer's .env must never be the thing that
-          # makes CI pass.
+          LOG_LEVEL: WARNING
+
+  integration:
+    runs-on: ubuntu-latest
+    # The migration runs DDL against the production branch, so this only runs on
+    # a push to main. A PR gets `test` only.
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --locked --dev
+
+      # `alembic check` is the useful part: it fails if the models and the
+      # database have drifted apart, which is the failure mode that leaves a
+      # deployment quietly writing to a column that does not exist.
+      - name: Check for unapplied migrations
+        run: uv run alembic check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SYNC_DATABASE_URL: ${{ secrets.SYNC_DATABASE_URL }}
+
+      - name: Integration tests
+        run: uv run pytest -q -m integration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SYNC_DATABASE_URL: ${{ secrets.SYNC_DATABASE_URL }}
           LOG_LEVEL: WARNING
