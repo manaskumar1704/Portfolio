@@ -52,7 +52,17 @@ log = get_logger(__name__)
 
 # Skip these everywhere. `_test` is fixtures, `_source` holds PDFs, and a leading
 # underscore is the convention for "not corpus".
+# Directories the ingest never walks. `_test` is fixtures, `_source` holds PDFs,
+# and `_converted` is intermediate output from `from_pdf.py`. A leading underscore
+# is the convention for "not corpus" and is honoured in `discover` as well, so a
+# new `_something` directory is skipped without editing this set.
 SKIP_DIRS = {"_test", "_source", "_converted"}
+
+# Prose about the corpus rather than content from it. `_test/README.md` explains
+# what the fixtures are and quotes a sample address; ingesting it made that README
+# outrank `contact.md` for the question "what is his email?", which is precisely
+# the kind of self-referential noise a corpus must not contain.
+PROSE_FILENAMES = {"README.md", "readme.md", "INDEX.md", "index.md"}
 
 
 @dataclass
@@ -63,13 +73,19 @@ class FileResult:
 
 
 def discover(directory: Path) -> list[Path]:
-    """Every markdown file under `directory`, sorted for reproducible runs."""
+    """Every markdown file under `directory`, sorted for reproducible runs.
+
+    Skips underscore-prefixed directories and README-style prose. Both are
+    deliberate: the first keeps fixtures and PDFs out of a real ingest, the
+    second keeps documentation about the corpus from being treated as corpus.
+    """
     return sorted(
         p
         for p in directory.rglob("*.md")
         if not any(
             part in SKIP_DIRS or part.startswith(".") for part in p.relative_to(directory).parts
         )
+        and p.name not in PROSE_FILENAMES
     )
 
 
@@ -225,6 +241,10 @@ async def run_ingest(
                 extra={"path": result.path, "written": result.written, "skipped": result.skipped},
             )
 
+        # Pruning compares against the file list from *this* run. A file skipped as
+        # prose or as an underscore directory has no rows to prune, so nothing is
+        # lost; but rows from a file that used to be ingested and no longer is
+        # (a renamed README, say) are removed only when --prune is passed.
         if do_prune:
             live = {p.relative_to(directory).as_posix() for p in files}
             await prune(live)

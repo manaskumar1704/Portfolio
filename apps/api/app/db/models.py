@@ -19,6 +19,7 @@ from sqlalchemy import (
     Boolean,
     Computed,
     DateTime,
+    Enum,
     Float,
     Identity,
     Index,
@@ -28,8 +29,15 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+# Every state a visitor message can be in. Phase 5 only writes 'pending'; the
+# others exist so the phase-6 send route records what it did without needing a
+# migration. Mirrored in the migration's `MESSAGE_STATUSES`; the two must agree
+# or `alembic check` proposes a type change.
+MESSAGE_STATUSES = ("pending", "sent", "expired", "failed")
 
 
 class Base(DeclarativeBase):
@@ -100,11 +108,14 @@ class Chunk(Base):
 
 
 class Message(Base):
-    """A recruiter's message, written before it is sent.
+    """A visitor's message, written before it is sent.
 
-    The status starts at `pending`; only `confirmed` means Resend was called.
+    Phase 5 only ever writes `pending`. The send route in phase 6 moves it to
+    `sent`, and nothing can send anything without an explicit approval.
+
     `approval_token_hash` is a SHA-256 of the token handed to the browser, so a
-    leaked database row cannot be replayed to send mail.
+    leaked database row cannot be replayed into sending mail. `expires_at` bounds
+    that capability in time.
     """
 
     __tablename__ = "messages"
@@ -116,22 +127,48 @@ class Message(Base):
     # server_default as well as the Python default. The column is NOT NULL, so
     # any writer that is not the ORM — a psql session, a future admin script,
     # a migration — would hit a constraint violation without it.
+    #
+    # An enum, not free text. A typo in the phase-6 update would otherwise write
+    # 'confimed' and the approval route would treat the message as pending
+    # forever. The database should refuse it.
+    #
+    # create_type=False: the migration owns the type, and creating it a second
+    # time here would make `alembic check` propose a change on every run.
     status: Mapped[str] = mapped_column(
-        String(20), default="pending", server_default="pending", nullable=False
+        Enum(
+            *MESSAGE_STATUSES,
+            name="message_status",
+            create_type=False,
+            validate_strings=True,
+        ),
+        default="pending",
+        server_default="pending",
+        nullable=False,
     )
     approval_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     # Bound at draft time and re-checked on approval. Without it, anyone who
     # learns a message id could confirm a stranger's draft.
     origin_ip: Mapped[str] = mapped_column(String(45), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Set when Resend returns an id, so a failed send is diagnosable.
+    # When the send capability stops working. A NULL here would read as "never
+    # expires" to every query that checks it, which is the opposite of the point.
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Set when Resend returns an id, in phase 6. Nullable because nothing sets it
+    # yet.
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     provider_id: Mapped[str | None] = mapped_column(String(255))
 
     __table_args__ = (
         # Phase 6 reads the inbox by status. Without this it is a sequential scan
         # of every message ever drafted.
         Index("ix_messages_status", "status"),
+        # Partial: pending drafts are a tiny fraction of the table and are the
+        # only rows any query filters for.
+        Index(
+            "ix_messages_pending",
+            "created_at",
+            postgresql_where=sql_text("status = 'pending'"),
+        ),
     )
 
 

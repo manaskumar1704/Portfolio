@@ -6,12 +6,16 @@ tool-calling, and it is why this is a module-level dict rather than anything
 derived from the service layer at runtime.
 
 Each entry pairs a `ToolSpec` (what the model sees) with a handler (what
-actually runs). Phase 3 ships one stub. Phases 4 and 5 replace it with
-`search_portfolio`, `get_github_repo` and `draft_message`.
+actually runs), plus the Pydantic model that validates the model's arguments.
 
 The handlers take plain arguments and return JSON-serialisable data. They do not
 know they are being called by a model, which is what lets phase 7's MCP server
 import the same functions directly.
+
+`draft_message` is registered here and still cannot send email. It writes a
+pending row; sending is a phase-6 HTTP route with its own token check. Keeping
+that split is the point: if sending were a tool, a prompt-injected visitor could
+reach it through the model.
 """
 
 from typing import Any
@@ -20,6 +24,14 @@ from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.services.llm import ToolSpec
+from app.tools.integrations import (
+    DRAFT_DESCRIPTION,
+    GITHUB_DESCRIPTION,
+    DraftMessageArgs,
+    GetGithubRepoArgs,
+    draft_message,
+    get_github_repo,
+)
 from app.tools.search import SearchPortfolioArgs, search_portfolio
 
 log = get_logger(__name__)
@@ -82,6 +94,58 @@ _REGISTRY: dict[str, tuple[ToolSpec, Any, type[BaseModel]]] = {
         ),
         search_portfolio,
         SearchPortfolioArgs,
+    ),
+    "get_github_repo": (
+        ToolSpec(
+            name="get_github_repo",
+            description=GITHUB_DESCRIPTION,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository name, 'owner/repo', or URL. "
+                        "Omit to get every repository on this site.",
+                        "maxLength": 200,
+                    },
+                },
+                # Nothing required: omitting repo is the documented way to ask
+                # "what have you built". Requiring it would make the model
+                # invent a name.
+                "required": [],
+            },
+        ),
+        get_github_repo,
+        GetGithubRepoArgs,
+    ),
+    "draft_message": (
+        ToolSpec(
+            name="draft_message",
+            description=DRAFT_DESCRIPTION,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The visitor's name.",
+                        "maxLength": 200,
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "The visitor's email address, so the owner can reply.",
+                        "maxLength": 320,
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "The message, in the visitor's own words.",
+                        "maxLength": 4000,
+                    },
+                },
+                "required": ["name", "email", "body"],
+            },
+        ),
+        draft_message,
+        DraftMessageArgs,
     ),
 }
 

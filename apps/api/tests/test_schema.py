@@ -103,14 +103,22 @@ async def test_embedding_is_not_nullable(ready_db) -> None:
 
 
 async def test_message_defaults_to_pending(ready_db) -> None:
-    """Nothing is sent until a human approves, and that is the default state."""
+    """Nothing is sent until a human approves, and that is the default state.
+
+    `status` is set by the database, not by this INSERT: the statement never
+    mentions the column. That is what makes the default true for a psql session
+    too. `expires_at` has to be supplied, because it is NOT NULL with no default
+    — the expiry is a decision, not an inference.
+    """
     async with ready_db.session_scope() as session:
         row = (
             await session.execute(
                 text(
                     """
-                    INSERT INTO messages (name, email, body, approval_token_hash, origin_ip)
-                    VALUES ('a', 'a@example.com', 'hi', :h, '127.0.0.1')
+                    INSERT INTO messages (name, email, body, approval_token_hash,
+                                          origin_ip, expires_at)
+                    VALUES ('a', 'a@example.com', 'hi', :h, '127.0.0.1',
+                            now() + interval '1 hour')
                     RETURNING id, status
                     """
                 ),
@@ -118,17 +126,10 @@ async def test_message_defaults_to_pending(ready_db) -> None:
             )
         ).fetchone()
 
-    # status is set by the database, not by this INSERT: the statement never
-    # mentions the column. That is what makes it true for a psql session too.
     assert row.status == "pending"
 
-    # Cleaned up by body rather than by id: `id` is a bigint and the purge
-    # helper binds strings.
     async with ready_db.session_scope() as session:
-        await session.execute(
-            text("DELETE FROM messages WHERE id = :v"),
-            {"v": row.id},
-        )
+        await session.execute(text("DELETE FROM messages WHERE id = :v"), {"v": row.id})
 
 
 async def test_message_requires_an_origin_ip(ready_db) -> None:
@@ -138,8 +139,24 @@ async def test_message_requires_an_origin_ip(ready_db) -> None:
             await session.execute(
                 text(
                     """
-                    INSERT INTO messages (name, email, body, approval_token_hash)
-                    VALUES ('a', 'a@example.com', 'hi', :h)
+                    INSERT INTO messages (name, email, body, approval_token_hash, expires_at)
+                    VALUES ('a', 'a@example.com', 'hi', :h, now() + interval '1 hour')
+                    """
+                ),
+                {"h": "0" * 64},
+            )
+
+
+async def test_message_requires_an_expiry(ready_db) -> None:
+    """A NULL expires_at would read as 'never expires' to every query."""
+    with pytest.raises(IntegrityError):
+        async with ready_db.session_scope() as session:
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO messages (name, email, body, status,
+                                          approval_token_hash, origin_ip)
+                    VALUES ('a', 'a@example.com', 'hi', 'pending', :h, '127.0.0.1')
                     """
                 ),
                 {"h": "0" * 64},
