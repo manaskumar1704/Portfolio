@@ -21,6 +21,27 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project --no-dev
 
+# Bake the embedding model into the image. Without this, the first request after a
+# cold start downloads ~67 MB from Hugging Face while the visitor watches a
+# spinner — and Render free spins down after 15 idle minutes, so that is most
+# first requests. The download happens here instead, once, on the builder's clock.
+#
+# It sits before the COPY on purpose. After the COPY, a one-line source edit
+# invalidated the layer and re-downloaded 67 MB on every push.
+#
+# Run through the project venv: `python` on the builder's PATH is the system
+# interpreter, so a bare `python -c` fails with ModuleNotFoundError for every
+# dependency in the project.
+#
+# FASTEMBED_CACHE_PATH is the mechanism, not a TextEmbedding argument. fastembed
+# 0.9 takes `cache_dir`; the env var is read by the library itself, so the
+# download lands where the runtime stage will look for it. Setting it in the
+# builder is what makes the cache portable across the two stages.
+ARG EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+ENV FASTEMBED_CACHE_PATH=/app/.fastembed_cache
+RUN --mount=type=cache,target=/root/.cache/uv \
+    /app/.venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('${EMBEDDING_MODEL}')"
+
 # Then the source.
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -35,11 +56,18 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH" \
-    OMP_NUM_THREADS=1
+    OMP_NUM_THREADS=1 \
+    FASTEMBED_CACHE_PATH=/app/.fastembed_cache
 
 WORKDIR /app
 
 COPY --from=builder /app /app
+
+# The baked model cache, readable by the unprivileged user the app runs as. Done
+# after the COPY because the cache is created by the layer above.
+RUN useradd --create-home --uid 10001 appuser \
+    && chown -R appuser:appuser /app/.fastembed_cache
+USER appuser
 
 EXPOSE 8000
 

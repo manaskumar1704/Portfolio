@@ -14,6 +14,7 @@ dependencies = [
   "pgvector>=0.5.0",
   "psycopg[binary]>=3.2",
   "google-genai>=2.25",
+  "fastembed>=0.9.0",
 ]
 
 [dependency-groups]
@@ -34,9 +35,11 @@ testpaths = ["tests"]
 # sys.path. This is what `[tool.uv] package = false` implies.
 pythonpath = ["."]
 asyncio_mode = "auto"
-# `integration` needs a live database. Skipped by default so a machine with no
-# credentials still gets a green run; opt in with -m integration.
-addopts = "-m 'not integration'"
+# `integration` needs a live database and `slow` loads the ONNX embedding model.
+# Both are excluded by default so `uv run pytest` is a few seconds on a machine
+# with no credentials and no model cache.
+addopts = "-m 'not integration and not slow'"
 markers = [
   "integration: needs a real DATABASE_URL, skipped unless -m integration is passed",
+  "slow: loads the embedding model into memory, skipped unless -m slow is passed",
 ]

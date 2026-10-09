@@ -91,6 +91,8 @@ apps/api     FastAPI backend
   ingest/        corpus -> chunk -> embed -> upsert (batch, not served)
 design/      Open Design export, reference only
 corpus/      Markdown source of truth for RAG
+  _test/     FICTIONAL fixture corpus, never ingested into the real one
+  _source/   PDFs, git-ignored. Convert with ingest/from_pdf.py
 evals/       Golden set + runner
 mcp/         MCP server (imports from apps/api tools)
 docs/        AI_USAGE.md, decisions/ ADRs, frontend-plan.md
@@ -172,3 +174,29 @@ complete prose.
 **Python**
 - Type hints on every function, small single-purpose modules, no duplicated
   logic, tests for every tool.
+
+**Corpus (never invent facts)**
+- The real corpus is the user's, in a separate repository, pointed at by
+  `CORPUS_DIR`. Do not write résumé content, employers, dates, metrics, or
+  contact details. If a fact is missing, say so.
+- `corpus/_test/` is fictional and labelled as such on every file. It exists only
+  so retrieval tests have concrete assertions. Never point the real ingest at it.
+- `corpus/_source/` holds PDFs and is git-ignored. Convert with
+  `ingest/from_pdf.py`; commit the Markdown, never the PDF.
+- Heading levels are load-bearing. The chunker uses `#`/`##` as chunk boundaries
+  and carries them through as citation labels.
+- PDFs lose two things silently: heading structure and word integrity. Both are
+  checked by `ingest/from_pdf.py`, which exits non-zero rather than writing a
+  file that retrieves badly.
+
+**Retrieval**
+- Retrieval is hybrid (lexical + dense, RRF-fused), not dense-only. Measured:
+  dense-only ranked off-topic questions *closer* than on-topic ones, so the tool
+  could not honestly report "nothing matched".
+- `ONNX` embeddings only. No sentence-transformers, no PyTorch — Render free is
+  512 MB. The measured container peak is 267 MB with the model loaded.
+- The BGE query instruction goes on queries, never on documents, and is applied
+  by hand: `fastembed`'s `query_embed` does not add it. There is a test pinning
+  that behaviour, so do not "simplify" it away.
+- The embedding model is baked into the Docker image at build time. A cold start
+  must never wait on a download.

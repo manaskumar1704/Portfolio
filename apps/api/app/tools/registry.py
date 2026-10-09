@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.services.llm import ToolSpec
+from app.tools.search import SearchPortfolioArgs, search_portfolio
 
 log = get_logger(__name__)
 
@@ -35,6 +36,14 @@ def echo(text: str) -> dict[str, str]:
     return {"echoed": text}
 
 
+SEARCH_DESCRIPTION = (
+    "Search the portfolio owner's résumé, projects, certifications, and profile "
+    "snapshots. Use this for any question about their work history, skills, "
+    "employers, dates, or projects. Returns passages with the source file each "
+    "came from, so you can cite them. Returns nothing when the corpus has no "
+    "match — in that case say you do not know rather than guessing."
+)
+
 _REGISTRY: dict[str, tuple[ToolSpec, Any, type[BaseModel]]] = {
     "echo": (
         ToolSpec(
@@ -49,6 +58,31 @@ _REGISTRY: dict[str, tuple[ToolSpec, Any, type[BaseModel]]] = {
         echo,
         EchoArgs,
     ),
+    "search_portfolio": (
+        ToolSpec(
+            name="search_portfolio",
+            description=SEARCH_DESCRIPTION,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "A search query, e.g. 'which company did they "
+                        "work at before Lantern Analytics'.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "How many passages to return. Defaults to 4.",
+                        "minimum": 1,
+                        "maximum": 8,
+                    },
+                },
+                "required": ["query"],
+            },
+        ),
+        search_portfolio,
+        SearchPortfolioArgs,
+    ),
 }
 
 
@@ -62,14 +96,20 @@ def resolve(name: str) -> tuple[ToolSpec, Any, type[BaseModel]] | None:
     return _REGISTRY.get(name)
 
 
-def call(name: str, arguments: dict[str, Any]) -> tuple[Any, str | None]:
+async def call(name: str, arguments: dict[str, Any]) -> tuple[Any, str | None]:
     """Run a registered tool.
 
     Returns `(result, error_message)`. Never raises: a tool that throws must not
     take down the stream, and the error goes back to the model as a tool result
     so it can recover or explain itself. The message is written for the model,
     so it never includes a traceback.
+
+    Async because retrieval embeds a query on the ONNX model and phase 5's tools
+    will make network calls. The sync `echo` stub is awaited-or-not depending on
+    what it is, which costs one `iscoroutinefunction` check.
     """
+    import inspect
+
     entry = resolve(name)
     if entry is None:
         log.warning("model asked for unregistered tool %r", name)
@@ -85,6 +125,8 @@ def call(name: str, arguments: dict[str, Any]) -> tuple[Any, str | None]:
         return None, complaint
 
     try:
+        if inspect.iscoroutinefunction(handler):
+            return await handler(**arguments), None
         return handler(**arguments), None
     except Exception as exc:
         # Logged with the real detail, reported to the model without it. A

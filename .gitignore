@@ -48,3 +48,6 @@ Thumbs.db
 
 #Skills
 *.agents
+# corpus PDFs: convert to markdown with ingest/from_pdf.py, commit only the markdown
+corpus/_source/
+

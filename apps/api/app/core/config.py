@@ -47,8 +47,17 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
 
     # Phase 4. 384 dimensions, which is what the vector column is declared as.
+    # Changing the model means re-running the ingest: rows written by two models
+    # have no meaningful distance between them, and `ingest_runs` records which
+    # one wrote which batch.
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dimensions: int = 384
+
+    # Where the markdown lives. A path, so the real corpus can move to its own
+    # repository without a code change.
+    corpus_dir: str = "corpus"
+    # PDFs go here and stay gitignored. ingest/from_pdf.py reads it.
+    corpus_source_dir: str = "corpus/_source"
 
     # Phase 5.
     github_token: str = ""

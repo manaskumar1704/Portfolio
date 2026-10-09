@@ -196,6 +196,22 @@ async def test_system_instruction_is_always_supplied() -> None:
     assert "never invent" in system.lower()
 
 
+def test_system_instruction_teaches_the_abstention_rule() -> None:
+    """`found: false` has to mean "say you don't know", not "search again".
+
+    Observed before this was written: a question about the corpus's subject got
+    answered with "I do not know what certifications Manas has", because the
+    retrieved passages named a different person and the model concluded the whole
+    corpus was irrelevant.
+    """
+    from app.services.chat import SYSTEM_INSTRUCTION
+
+    lowered = SYSTEM_INSTRUCTION.lower()
+    assert "found: false" in lowered
+    assert "not in the corpus" in lowered
+    assert "fixture data" in lowered
+
+
 async def test_prose_before_a_tool_call_is_not_replayed() -> None:
     """A model that narrates, then calls a tool, must not repeat its narration.
 
