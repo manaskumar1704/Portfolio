@@ -35,11 +35,16 @@ class Settings(BaseSettings):
     database_url: str = ""
     sync_database_url: str = ""
 
-    # Phase 3.
-    llm_provider: str = "groq"
-    llm_model: str = "openai/gpt-oss-120b"
-    groq_api_key: str = ""
+    # Phase 3. Gemini primary: gemini-3.5-flash-lite is the cheapest no-card
+    # option that does function calling properly, and the demo is a streaming
+    # UI where time-to-first-token is the product. Groq is the 429 fallback.
+    llm_provider: str = "gemini"
+
+    gemini_model: str = "gemini-3.5-flash-lite"
     gemini_api_key: str = ""
+
+    groq_model: str = "openai/gpt-oss-120b"
+    groq_api_key: str = ""
 
     # Phase 4. 384 dimensions, which is what the vector column is declared as.
     embedding_model: str = "BAAI/bge-small-en-v1.5"
@@ -76,6 +81,18 @@ class Settings(BaseSettings):
     @property
     def tracing_enabled(self) -> bool:
         return bool(self.langfuse_public_key and self.langfuse_secret_key)
+
+    @property
+    def llm_api_key(self) -> str:
+        """The key for the configured provider, or empty when it is missing.
+
+        `build_llm_client` uses this to fail at startup with a message that
+        names the variable, instead of at the first visitor's request with a
+        401 from a provider SDK.
+        """
+        if self.llm_provider.lower() == "gemini":
+            return self.gemini_api_key
+        return self.groq_api_key
 
 
 @lru_cache

@@ -14,7 +14,8 @@ user approved in session. Backend builds in slices, one phase per prompt.
 | UI vibe | Terminal / Claude Code-like, monospace-forward |
 | API | FastAPI, managed with uv, Docker, **Render free web service** |
 | Database | **Neon** Postgres + pgvector. **Not** Render Postgres (expires in 30 days) |
-| LLM (app runtime) | Groq (`gpt-oss-120b`) first, Gemini fallback. Behind an `LLMClient` interface |
+| LLM (app runtime) | **Gemini `gemini-3.5-flash-lite`** primary, Groq (`openai/gpt-oss-120b`) fallback. Behind an `LLMClient` interface |
+| Gemini SDK | `google-genai` >= 2.25. Never the deprecated `google-generativeai` |
 | Embeddings | Small local model (fastembed), must fit 512 MB RAM |
 | Evals | pytest runner in `evals/` |
 | Tracing | Langfuse |
@@ -25,6 +26,30 @@ user approved in session. Backend builds in slices, one phase per prompt.
 No LangChain. Native provider tool-calling, behind `LLMClient`. Tool-calling is
 the spine; RAG is one tool; MCP is a separate showcase layer that **imports**
 from `apps/api`, never copies.
+
+## 🤖 Gemini skills — load when working on `app/services/llm.py`
+
+`.agents/skills/` holds Gemini skills. **Load `gemini-api-dev` before writing or
+changing any Gemini code.** They override training data: model names, SDK
+surface, and event shapes in this area change faster than anything else here.
+
+- `gemini-api-dev` — text, streaming, **function calling**, structured output.
+  Required for the chat endpoint and any change to `GeminiClient`.
+- `gemini-live-api-dev` — bidirectional audio/video streaming. **Not used by
+  this project.** Do not add a Live dependency for a text chat.
+- `gemini-omni-flash-api` — video generation. **Not used by this project.**
+
+Model rules from those skills that bind this repo:
+
+- **Never `gemini-2.5-*`, `gemini-2.0-*`, `gemini-1.5-*`.** Legacy and
+  deprecated.
+- Use `google-genai` >= 2.25. Never `google-generativeai`.
+- SDK >= 2.0 uses the Interactions schema. The `interactions` surface is what
+  `GeminiClient` calls; keep it that way rather than reaching for
+  `generateContent` directly.
+- Verify a model id exists before relying on it:
+  `curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"`
+  Models listed in a skill are not a guarantee.
 
 ## 🎨 Frontend
 

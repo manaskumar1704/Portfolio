@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health
+from app.api import chat, health
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger, request_id
 from app.db import pool as db
@@ -102,3 +102,4 @@ async def log_requests(
 
 
 app.include_router(health.router)
+app.include_router(chat.router)

@@ -7,6 +7,24 @@
       "skillPath": "skills/taste-skill/SKILL.md",
       "computedHash": "899b84384f74f540ea5284d9b2e9234e050998b42eacc805410b518d4226c0b3"
     },
+    "gemini-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-api-dev/SKILL.md",
+      "computedHash": "c46a217af00d51896982e6f4998e7dce5396f72834b7203da496009b7e9e7296"
+    },
+    "gemini-live-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-live-api-dev/SKILL.md",
+      "computedHash": "e7e16a5eaa3f47fa1c815de2d595801d6c5662523ef8a9d99766f5ebc94c4b78"
+    },
+    "gemini-omni-flash-api": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-omni-flash-api/SKILL.md",
+      "computedHash": "7b6267b4479d755fa31cd8c6b11acbe030fbc8c7ff8bd6339e598d747f5ab03e"
+    },
     "high-end-visual-design": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
