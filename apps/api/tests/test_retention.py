@@ -224,27 +224,58 @@ async def test_a_second_sweep_does_nothing_the_first_did_not() -> None:
 async def test_a_held_lock_skips_the_sweep_rather_than_waiting() -> None:
     """Waiting would put a DELETE on the request path.
 
-    `pg_try_advisory_lock` returns false immediately; the sweep returns zeroes.
-    Holding the lock from a second connection is exactly the multi-process case.
+    The lock is **transaction-scoped** (`pg_try_advisory_xact_lock`), which is
+    the only form that survives PgBouncer transaction pooling on the pooled Neon
+    URL. A session-level `pg_try_advisory_lock` can be taken on one backend and
+    unlocked on another, leaving it held forever — after which every sweep
+    silently no-ops and retention stops working.
+
+    Holding it from a second connection is exactly the contention this guards.
+    The holder's transaction stays open, so its lock stays held.
     """
     from sqlalchemy import text
 
     from app.core.retention import SWEEP_LOCK_ID
     from app.db import pool
 
-    async with pool.session_scope() as session:
+    # Held open across the sweep, on purpose. `session_scope` commits on exit,
+    # which would release a transaction-scoped lock before the sweep ever
+    # looked for it, and the test would pass for the wrong reason.
+    async with pool.get_engine().connect() as holder:
+        transaction = await holder.begin()
         acquired = (
-            await session.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": SWEEP_LOCK_ID})
+            await holder.execute(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID})
         ).scalar_one()
         assert acquired, "could not take the lock to test against"
 
-    try:
         result = await sweep_once(settings())
-    finally:
-        async with pool.session_scope() as session:
-            await session.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": SWEEP_LOCK_ID})
+
+        await transaction.rollback()
 
     assert result.total == 0
+
+
+async def test_the_lock_is_released_after_a_sweep() -> None:
+    """The bug this pins: a lock that outlives its sweep disables all future ones.
+
+    With the session-level form on a pooled connection, an explicit unlock could
+    land on a different backend and the lock would never be freed. With the
+    transaction-scoped form, committing releases it — so a second sweep must be
+    able to take it.
+    """
+    from sqlalchemy import text
+
+    from app.core.retention import SWEEP_LOCK_ID
+    from app.db import pool
+
+    await sweep_once(settings())
+
+    async with pool.session_scope() as session:
+        second_take = (
+            await session.execute(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID})
+        ).scalar_one()
+
+    assert second_take is True, "the previous sweep leaked its lock"
 
 
 async def test_a_dry_run_reports_without_deleting() -> None:

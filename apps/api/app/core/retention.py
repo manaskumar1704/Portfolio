@@ -4,7 +4,7 @@
 
 Render free has no scheduled jobs, Neon's free tier has no cron extension
 enabled, and GitHub Actions disables scheduled workflows on public repositories
-after 60 days of repository inactivity — so a keep-alive cron that silently stops
+after 60 days of repository inactivity â€” so a keep-alive cron that silently stops
 is worse than no cron, because it looks identical to a working one.
 
 Two triggers remain, both free:
@@ -19,7 +19,7 @@ Two triggers remain, both free:
 The honest consequence, recorded rather than papered over: **when a site has no
 traffic, nothing sweeps.** Stale drafts persist until the next visitor. They are
 inert rows holding a salted digest rather than a readable address, so the risk is
-bounded — but this is retention-by-laziness, not retention-by-policy.
+bounded â€” but this is retention-by-laziness, not retention-by-policy.
 
 `uv run python -m app.core.retention` is the manual escape hatch, and a Neon cron
 or an authenticated external sweep endpoint would close the gap properly.
@@ -90,72 +90,86 @@ async def sweep_once(settings: Settings) -> SweepResult:
     result = SweepResult()
 
     async with pool.session_scope() as session:
-        # `pg_try_advisory_lock` returns false immediately rather than waiting.
-        # Waiting would put a DELETE on the request path.
+        # `pg_try_advisory_xact_lock`, NOT `pg_try_advisory_lock`.
+        #
+        # The sweep runs on `pool.session_scope()`, which is built from
+        # `DATABASE_URL` — the POOLED Neon URL, i.e. PgBouncer in transaction
+        # pooling mode. Session-level advisory locks do not survive that: the lock
+        # is taken on whichever backend served this transaction, and the matching
+        # unlock can be routed to a different one, leaving the lock held forever.
+        # Every later sweep would then report "another process holds the lock" and
+        # retention would quietly stop working, with nothing in the logs but a
+        # debug line nobody reads.
+        #
+        # The `_xact_` variant is released by COMMIT or ROLLBACK, which
+        # `session_scope` guarantees, so the lock cannot outlive its transaction
+        # whichever backend served it.
+        #
+        # `try_` rather than the blocking form: waiting would put a DELETE on the
+        # request path.
         acquired = (
-            await session.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": SWEEP_LOCK_ID})
+            await session.execute(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID})
         ).scalar_one()
 
         if not acquired:
             log.debug("sweep skipped: another process holds the lock")
             return result
 
-        try:
-            # Expired and unsent. The condition is `expires_at` rather than a
-            # separate age column: the expiry is already the answer, and a second
-            # column would be a second thing to keep correct.
-            result.expired_drafts = (
-                await session.execute(
-                    text(
-                        """
-                        DELETE FROM messages
-                        WHERE status IN ('pending', 'sending') AND expires_at < now()
-                        """
-                    )
+        # Expired and unsent. The condition is `expires_at` rather than a
+        # separate age column: the expiry is already the answer, and a second
+        # column would be a second thing to keep correct.
+        result.expired_drafts = (
+            await session.execute(
+                text(
+                    """
+                    DELETE FROM messages
+                    WHERE status IN ('pending', 'sending') AND expires_at < now()
+                    """
                 )
-            ).rowcount
+            )
+        ).rowcount
 
-            # Unsent but unexpired, and past the retention window anyway. A draft
-            # can be written with an expiry the visitor will never reach, and this
-            # is the backstop.
-            result.stale_drafts = (
-                await session.execute(
-                    text(
-                        """
-                        DELETE FROM messages
-                        WHERE status = 'pending'
-                          AND created_at < now() - make_interval(days => :days)
-                        """
-                    ),
-                    {"days": settings.draft_retention_days},
-                )
-            ).rowcount
+        # Unsent but unexpired, and past the retention window anyway. A draft
+        # can be written with an expiry the visitor will never reach, and this
+        # is the backstop.
+        result.stale_drafts = (
+            await session.execute(
+                text(
+                    """
+                    DELETE FROM messages
+                    WHERE status = 'pending'
+                      AND created_at < now() - make_interval(days => :days)
+                    """
+                ),
+                {"days": settings.draft_retention_days},
+            )
+        ).rowcount
 
-            # Sent and failed rows keep their body for a while, then go. The IP
-            # hash was already cleared at send time.
-            result.old_sent = (
-                await session.execute(
-                    text(
-                        """
-                        DELETE FROM messages
-                        WHERE status IN ('sent', 'failed')
-                          AND COALESCE(sent_at, created_at)
-                              < now() - make_interval(days => :days)
-                        """
-                    ),
-                    {"days": settings.sent_row_retention_days},
-                )
-            ).rowcount
+        # Sent and failed rows keep their body for a while, then go. The IP
+        # hash was already cleared at send time.
+        result.old_sent = (
+            await session.execute(
+                text(
+                    """
+                    DELETE FROM messages
+                    WHERE status IN ('sent', 'failed')
+                      AND COALESCE(sent_at, created_at)
+                          < now() - make_interval(days => :days)
+                    """
+                ),
+                {"days": settings.sent_row_retention_days},
+            )
+        ).rowcount
 
-            # Counter rows older than a week are dead weight. Resend's quota
-            # resets daily, so yesterday's count is worth nothing.
-            result.old_counters = (
-                await session.execute(
-                    text("DELETE FROM send_counters WHERE day < current_date - 7")
-                )
-            ).rowcount
-        finally:
-            await session.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": SWEEP_LOCK_ID})
+        # Counter rows older than a week are dead weight. Resend's quota
+        # resets daily, so yesterday's count is worth nothing.
+        result.old_counters = (
+            await session.execute(text("DELETE FROM send_counters WHERE day < current_date - 7"))
+        ).rowcount
+
+        # No unlock. The lock is transaction-scoped and `session_scope` commits
+        # on the way out of this block, which releases it. An explicit unlock here
+        # would be the session-level mistake this block exists to fix.
 
     result.reaped_sends = await reap_stale_sends()
 
@@ -173,7 +187,7 @@ async def sweep_on_boot(settings: Settings) -> None:
     stale rows.
 
     **Does not manage the pool.** The caller (`app.main`'s lifespan) has already
-    built the engine, and this used to call `pool.teardown()` on its way out —
+    built the engine, and this used to call `pool.teardown()` on its way out â€”
     which disposed the live pool, so the first real request after boot found no
     session factory. Every caller here already has a working pool; this function
     only borrows it.
