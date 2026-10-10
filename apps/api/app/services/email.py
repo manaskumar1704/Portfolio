@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.core.config import Settings
 from app.core.logging import get_logger
@@ -247,18 +247,3 @@ def _safe_detail(response: httpx.Response) -> str:
         return "unknown error"
 
     return str(name)
-
-
-class _RenderedAddress(BaseModel):
-    """Validates an address before it is handed to the provider."""
-
-    email: str = Field(max_length=320)
-
-    @classmethod
-    def check(cls, value: str) -> str:
-        from app.services.contact import DraftError, normalise_email
-
-        try:
-            return normalise_email(value)
-        except DraftError as exc:
-            raise EmailError(f"invalid recipient address: {exc}") from exc

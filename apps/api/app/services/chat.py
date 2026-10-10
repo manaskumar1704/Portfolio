@@ -45,12 +45,6 @@ from app.core.logging import get_logger
 from app.services.llm import MAX_TOOL_ITERATIONS, ChatMessage, LLMClient, ToolResult
 from app.tools import registry
 
-# The send capability never goes to the model. `draft_message` returns it to
-# this loop, which strips it and emits a `draft` event instead; the copy that
-# reaches the browser is structured data the router forwards, never prose the
-# model reads or can be quoted back.
-TOKEN_KEYS = ("approval_token", "token")
-
 log = get_logger(__name__)
 
 

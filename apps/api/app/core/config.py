@@ -180,24 +180,6 @@ class Settings(BaseSettings):
         """
         return bool(self.probe_token)
 
-    def require_email(self) -> None:
-        """Fail at boot, naming the variable, when sending is half-configured."""
-        missing = [
-            name
-            for name, value in (
-                ("RESEND_API_KEY", self.resend_api_key),
-                ("CONTACT_NOTIFY_EMAIL", self.contact_notify_email),
-            )
-            if not value
-        ]
-        if missing:
-            raise RuntimeError(
-                "Email sending is enabled but not configured. Set: "
-                + ", ".join(missing)
-                + ". The send route refuses to report success without them, "
-                "rather than silently dropping a visitor's message."
-            )
-
     @property
     def llm_api_key(self) -> str:
         """The key for the configured provider, or empty when it is missing.
