@@ -51,6 +51,24 @@ async def lifespan(app: FastAPI):
     except RuntimeError as exc:
         log.warning("github tool disabled: %s", str(exc).split(".")[0])
 
+    # Production only. In local and CI these checks would fire on every run,
+    # because a checkout legitimately has no database and no keys.
+    if settings.is_production:
+        for problem in settings.production_warnings():
+            log.warning("production: %s", problem)
+
+        problems = settings.production_problems()
+        if problems:
+            # Raise, do not log and continue. Each of these absences is silent —
+            # the app boots, `/health` answers, and the failure surfaces later as
+            # a 500 in front of a visitor or an email that never arrives. Failing
+            # here means Render keeps the previous deploy and the cause is one log
+            # line instead of a support ticket.
+            raise RuntimeError(
+                "Refusing to start in production with an unusable configuration:\n  - "
+                + "\n  - ".join(problems)
+            )
+
     try:
         yield
     finally:

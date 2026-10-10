@@ -184,9 +184,11 @@ class Settings(BaseSettings):
     def llm_api_key(self) -> str:
         """The key for the configured provider, or empty when it is missing.
 
-        `build_llm_client` uses this to fail at startup with a message that
-        names the variable, instead of at the first visitor's request with a
-        401 from a provider SDK.
+        Read by `production_problems`, which is what turns a missing key into a
+        boot failure with a message naming the variable. `build_llm_client` does
+        *not* call this — an earlier version of this docstring said it did, and
+        the effect was a deployment that booted clean and failed on the first
+        visitor's question with a provider SDK error.
         """
         if self.llm_provider.lower() == "gemini":
             return self.gemini_api_key
@@ -234,6 +236,106 @@ class Settings(BaseSettings):
                 "a visitor pointing it at arbitrary repos and spending the token's "
                 "rate limit."
             )
+
+    @property
+    def is_production(self) -> bool:
+        """Whether to hold this deployment to the production contract.
+
+        `APP_ENV` is the switch and the default is `local`, so a checkout with no
+        `.env` never trips the production rules on a laptop.
+        """
+        return self.app_env.strip().lower() == "production"
+
+    def production_problems(self) -> list[str]:
+        """What must be true before this instance should serve anyone.
+
+        Returns a list rather than raising, so the caller decides: the lifespan
+        fails on a non-empty result, the preflight script prints it.
+
+        **Fail and warn are not uniform, and the asymmetry is deliberate.**
+
+        Fails — the absences that are silent. A missing `DATABASE_URL` boots an
+        app that answers `/health` forever and 500s on every real request. A
+        missing `GEMINI_API_KEY` boots an app that looks fine and fails on the
+        first visitor's question. Empty `CORS_ORIGINS` boots an app the browser
+        cannot read a single response from. A salt under 16 characters produces
+        digests that can be reversed by brute force over the whole IPv4 space.
+
+        Warns — `TRUSTED_PROXY_CIDRS` being empty. It is genuinely unpopulated
+        until someone runs the probe route, so failing on it would block the very
+        deploy needed to discover the value. It breaks approving in the meantime,
+        which is the right direction to fail: nobody can forge an IP, and drafts
+        are abandoned rather than mis-sent.
+        """
+        problems: list[str] = []
+
+        if not self.database_url:
+            problems.append("DATABASE_URL is empty. Every database-backed endpoint will 500.")
+
+        if not self.sync_database_url:
+            problems.append(
+                "SYNC_DATABASE_URL is empty. Alembic cannot run, so no migration is "
+                "applied on deploy and the container will not start."
+            )
+
+        if not self.llm_api_key:
+            provider = self.llm_provider.lower()
+            problems.append(
+                f"{provider.upper()}_API_KEY is empty while LLM_PROVIDER is "
+                f"{self.llm_provider}. The app boots and then fails on the first "
+                "question with a provider error rather than a configuration one."
+            )
+
+        if not self.cors_origins:
+            problems.append(
+                "CORS_ORIGINS is empty. The browser receives no "
+                "Access-Control-Allow-Origin and cannot read any response."
+            )
+
+        if len(self.ip_hash_salt) < 16:
+            problems.append(
+                f"IP_HASH_SALT is {len(self.ip_hash_salt)} characters; 16 are the "
+                "minimum. A shorter salt makes the stored IP hash reversible by "
+                "brute force over the IPv4 space."
+            )
+
+        has_key = bool(self.resend_api_key)
+        has_address = bool(self.contact_notify_email)
+        if has_key != has_address:
+            missing = "RESEND_API_KEY" if has_address else "CONTACT_NOTIFY_EMAIL"
+            problems.append(
+                f"{missing} is missing while the other Resend setting is present. "
+                "Both or neither — one alone is a typo. The send route returns 503 "
+                "until both are set."
+            )
+
+        return problems
+
+    def production_warnings(self) -> list[str]:
+        """Things that are expected on a first deploy and fixed by hand.
+
+        Split from `production_problems` so a deploy is never blocked on the one
+        value whose only remedy is running a probe and reading what comes back.
+        """
+        warnings: list[str] = []
+
+        if not self.trusted_proxy_cidrs:
+            warnings.append(
+                "TRUSTED_PROXY_CIDRS is empty, so the send route ignores "
+                "X-Forwarded-For and compares against the socket peer. That cannot be "
+                "forged, which is safe, but behind Render the peer is the proxy for "
+                "every request, so approving a drafted message will not work until "
+                "this is set. Populate it from GET /_probe/headers — see ADR 0006."
+            )
+
+        if self.resend_from == "onboarding@resend.dev":
+            warnings.append(
+                "RESEND_FROM is onboarding@resend.dev, which delivers only to the "
+                "account's own address. Messages will reach you and nobody else "
+                "until a domain is verified."
+            )
+
+        return warnings
 
 
 @lru_cache
