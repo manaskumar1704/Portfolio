@@ -86,6 +86,11 @@ services:
       # degrades. Changing it means re-running ingest, not a redeploy.
       - key: EMBEDDING_MODEL
         value: BAAI/bge-small-en-v1.5
+      # Must match the vector column, which is vector(384). A mismatch does not
+      # error — it makes distances between vectors from two different models
+      # meaningless, and answers quietly get worse.
+      - key: EMBEDDING_DIMENSIONS
+        value: "384"
       - key: OMP_NUM_THREADS
         value: "1"
 

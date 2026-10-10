@@ -27,6 +27,12 @@ approving their own draft.
 
 `# ponytail: origin IP checked with simple inequality. Move to a subnet-aware
 match when there is a reverse proxy in front that rewrites the client address.`
+CLOSED in phase 6. There is a reverse proxy in front, and the fix was not
+subnet-aware comparison but storing no address at all: `app/core/client_ip.py`
+normalises IPv6 to its /64 and IPv4 to /32, and the send route compares a salted
+SHA-256 rather than the address. A rotation within a /64 no longer fails an
+approval, which is the case the old note was worried about in the other
+direction. The marker stays until nothing here compares addresses any more.
 
 ## Sanitization
 
