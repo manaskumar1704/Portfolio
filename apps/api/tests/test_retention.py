@@ -315,7 +315,7 @@ def settings(**overrides):
     return config
 
 
-def test_the_sweep_reports_counts_rather_than_rows() -> None:
+async def test_the_sweep_reports_counts_rather_than_rows() -> None:
     """The summary is logged, so it must not be able to carry a message body."""
     from app.core.retention import SweepResult
 
