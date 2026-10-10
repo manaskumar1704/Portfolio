@@ -226,6 +226,77 @@ def test_rate_limited_request_returns_429(stub_chat, monkeypatch) -> None:
     assert parse_sse(second.text)[0][0] == "busy"
 
 
+def test_the_limiter_keys_on_the_visitor_not_the_proxy(stub_chat, monkeypatch) -> None:
+    """Two different visitors behind one proxy get separate budgets.
+
+    `request.client.host` is Render's own proxy address for every request, so
+    keying on it makes the limiter a global throttle: one person asking six
+    questions locks out the entire site. It fails quietly, because the limiter
+    still works — it just works on the wrong key.
+
+    Both requests carry the same peer, and different forwarded addresses, and
+    both are allowed.
+    """
+    monkeypatch.setattr("app.api.chat._limiter", RateLimiter(per_minute=60, burst=1))
+    monkeypatch.setattr("app.core.config.get_settings", _settings_where)
+
+    with TestClient(app, client=("10.0.0.5", 5000)) as client:
+        first = client.post("/chat", json={"message": "hi"}, headers=_forwarded(VISITOR))
+        second = client.post("/chat", json={"message": "hi again"}, headers=_forwarded(OTHER_VISITOR))
+
+    assert first.status_code == 200
+    assert second.status_code == 200, "two visitors shared one budget"
+
+
+def test_a_forged_forwarded_header_does_not_evade_the_limiter(stub_chat, monkeypatch) -> None:
+    """The other half. Claiming a new address must not buy a new bucket.
+
+    Only honoured from a trusted peer, so a stranger sending this header gets the
+    socket address instead — and the bucket they have already drained.
+    """
+    monkeypatch.setattr("app.api.chat._limiter", RateLimiter(per_minute=60, burst=1))
+    # The peer here is NOT in the trust list, so the header is ignored entirely.
+    monkeypatch.setattr("app.core.config.get_settings", _settings_where)
+
+    with TestClient(app, client=("45.33.32.99", 5000)) as client:
+        first = client.post("/chat", json={"message": "hi"}, headers=_forwarded(VISITOR))
+        second = client.post("/chat", json={"message": "again"}, headers=_forwarded(OTHER_VISITOR))
+
+    assert first.status_code == 200
+    assert second.status_code == 429, "a forged header bought a fresh bucket"
+
+
+# Globally routable, because `client_ip` refuses a forwarded header claiming a
+# non-global address — correctly, since no real visitor is on one.
+VISITOR = "45.33.32.42"
+OTHER_VISITOR = "8.8.8.8"
+
+
+def _forwarded(address: str) -> dict:
+    return {"x-forwarded-for": address}
+
+
+def _settings_where():
+    """Settings whose trust list holds Render's proxy, not the stranger.
+
+    Imported by value, not by module attribute: this function *replaces*
+    `get_settings`, so looking it up through `app.core.config` at call time would
+    call itself until the stack ran out.
+
+    `TestClient`'s default peer is the literal string `testclient`, which is not
+    an address at all — `client_ip` cannot match it against a CIDR and falls back
+    to a sentinel, which would put every request on one key and make both tests
+    above pass or fail for the wrong reason. So the peer is set explicitly with
+    the `client=` argument, and these two tests use a trusted and an untrusted
+    one respectively.
+    """
+    from app.core.config import Settings
+
+    settings = Settings()
+    settings.trusted_proxy_cidrs = ["10.0.0.0/8"]
+    return settings
+
+
 def test_refill_is_proportional_to_time_waited(stub_chat, monkeypatch) -> None:
     """Waiting earns budget at the configured rate, continuously.
 

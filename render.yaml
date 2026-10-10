@@ -1,0 +1,164 @@
+# Render Blueprint for the API. Free tier throughout.
+#
+# Two things here are not obvious and are the reason this file exists.
+#
+# ## Migrations run in the container's CMD, not a preDeployCommand
+#
+# Render's pre-deploy command is documented as "available for paid web
+# services". This is a free service, so there isn't one.
+#
+# `dockerCommand` is the free tier's equivalent and overrides the Dockerfile's
+# CMD, which is why the uvicorn invocation is repeated here rather than left in
+# the image. One instance on free means there is no race between two containers
+# both running `alembic upgrade head`.
+#
+# The ordering this relies on: the migration runs in the *new* container, so the
+# old one is still serving against the old schema while it happens. That is only
+# safe because every migration in this project is additive and backwards
+# compatible — see ADR 0006. A migration that drops or renames a column cannot be
+# deployed this way.
+#
+# If the migration fails, the container never starts and Render keeps serving the
+# previous deploy. That is the honest failure: a broken schema is visible rather
+# than serving 500s.
+#
+# ## Secrets are `sync: false`
+#
+# Render prompts for them on first sync and stores them in the dashboard. Nothing
+# secret is in this file, and nothing secret belongs in it.
+
+services:
+  - type: web
+    runtime: docker
+    name: portfolio-api
+    plan: free
+
+    # Monorepo. `rootDir` sets both the build context and where the Dockerfile is
+    # looked for, which is Render's documented monorepo pattern. The repo root
+    # would fail: there is no uv.lock there, and the Dockerfile expects
+    # apps/api as its context.
+    rootDir: apps/api
+
+    # Overrides the Dockerfile CMD so migrations run first.
+    dockerCommand: >-
+      alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+    # Does not touch the database, so Neon can still scale to zero.
+    healthCheckPath: /health
+
+    # One instance. Free gives 0.1 CPU and 512 MB, and the tool loop plus the
+    # embedding model is the memory ceiling.
+    numInstances: 1
+
+    # Deploy only when CI passes, so a red suite never reaches production.
+    autoDeployTrigger: checksPass
+
+    # A monorepo pushes the frontend on most commits. Rebuilding the API — which
+    # re-resolves dependencies and re-bakes a 67 MB model — for a CSS change is
+    # the difference between a cheap deploy and a slow one.
+    buildFilter:
+      ignoredPaths:
+        - apps/web/**
+        - design/**
+        - docs/**
+        - graphify-out/**
+        - corpus/**
+        - evals/**
+        - mcp/**
+
+    envVars:
+      # --- Non-secret, identical to .env.example ---
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      # The Vercel frontend origin. Empty means no CORS headers at all, so the
+      # browser cannot read a response — safe, but the site does not work.
+      - key: CORS_ORIGINS
+        sync: false
+
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      # Must match the model that produced the vectors, or retrieval silently
+      # degrades. Changing it means re-running ingest, not a redeploy.
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-small-en-v1.5
+      - key: OMP_NUM_THREADS
+        value: "1"
+
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "10"
+      - key: RATE_LIMIT_BURST
+        value: "10"
+      - key: APPROVE_LIMIT_PER_HOUR
+        value: "3"
+      # Resend's free tier allows 100/day. The cap sits under it with room for
+      # the failed sends that still consume a reservation.
+      - key: DAILY_SEND_CAP
+        value: "70"
+      - key: DRAFT_RETENTION_DAYS
+        value: "7"
+      - key: SENT_ROW_RETENTION_DAYS
+        value: "30"
+      - key: RETENTION_SWEEP_PERCENT
+        value: "2"
+
+      # --- Secrets ---
+      # Neon. The pooled host for DATABASE_URL, the direct host for
+      # SYNC_DATABASE_URL — Alembic runs DDL, which a transaction pooler
+      # misroutes.
+      - key: DATABASE_URL
+        sync: false
+      - key: SYNC_DATABASE_URL
+        sync: false
+
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+      # A fine-grained PAT, scoped to public repositories read-only. A classic
+      # token's scope is the whole account.
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_OWNER
+        sync: false
+      - key: GITHUB_PINS
+        sync: false
+
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CONTACT_NOTIFY_EMAIL
+        sync: false
+      # onboarding@resend.dev delivers only to the account's own address. Switch
+      # this to a verified domain to reach anyone else — it is an environment
+      # variable, not a code change.
+      - key: RESEND_FROM
+        value: onboarding@resend.dev
+
+      # The salt for the visitor IP hash. Generate with:
+      #   python -c "import secrets; print(secrets.token_urlsafe(32))"
+      #
+      # Changing it makes every outstanding draft unapprovable. That is the
+      # intended failure mode — drafts are abandoned, never sent by someone else.
+      - key: IP_HASH_SALT
+        sync: false
+
+      # Empty means "trust nobody", which is safe: the send route falls back to
+      # the socket address and no visitor's forged header is believed. It also
+      # breaks approval for everyone, because the socket peer is Render's proxy
+      # for every request.
+      #
+      # Populate from the GET /_probe/headers route once, from what it actually
+      # observes. Do not guess Render's CIDRs — a wrong entry either discards the
+      # real header or trusts a stranger's.
+      - key: TRUSTED_PROXY_CIDRS
+        value: ""
+
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false

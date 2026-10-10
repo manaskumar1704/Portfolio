@@ -122,6 +122,11 @@ class Settings(BaseSettings):
     # cron on this tier, so the sweep runs on boot and opportunistically here.
     retention_sweep_percent: int = 2
 
+    # Phase 6. Bearer for `GET /_probe/headers`, which reports the socket peer so
+    # `TRUSTED_PROXY_CIDRS` can be filled from observation. Empty means the route
+    # 404s. Delete the route and unset this once the list is populated.
+    probe_token: str = ""
+
     # Phase 7.
     mcp_auth_token: str = ""
 
@@ -162,6 +167,18 @@ class Settings(BaseSettings):
     @property
     def email_enabled(self) -> bool:
         return bool(self.resend_api_key and self.contact_notify_email)
+
+    @property
+    def probe_enabled(self) -> bool:
+        """Whether `PROBE_TOKEN` is set at all.
+
+        An empty token means the probe route 404s for everyone. A *boolean* flag
+        was the first version of this and it is the wrong shape: "remember to
+        turn it off" is a plan, and the failure mode is an open endpoint
+        reporting the socket peer address forever — which is precisely what tells
+        an attacker whether `X-Forwarded-For` is being believed.
+        """
+        return bool(self.probe_token)
 
     def require_email(self) -> None:
         """Fail at boot, naming the variable, when sending is half-configured."""

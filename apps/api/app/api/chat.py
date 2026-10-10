@@ -20,14 +20,17 @@ stream into one lump at the end — without it, SSE works in development and
 arrives all at once in production.
 """
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
+from app.core.client_ip import client_ip as resolve_client_ip
 from app.core.logging import get_logger
 from app.core.ratelimit import RateLimiter
+from app.core.retention import maybe_sweep
 from app.schemas.chat import ChatRequest
 from app.services.chat import StreamEvent, run_chat_turn
 from app.services.llm import ChatMessage, build_llm_client
@@ -35,8 +38,6 @@ from app.services.llm import ChatMessage, build_llm_client
 router = APIRouter(tags=["chat"])
 log = get_logger(__name__)
 
-# Phase 6 tunes the limits and moves the counters somewhere durable. Built here
-# now so the endpoint's shape does not change when that lands.
 _limiter = RateLimiter()
 
 
@@ -55,7 +56,18 @@ def _frame(event: StreamEvent) -> str:
 async def chat(request: Request, body: ChatRequest) -> StreamingResponse:
     # Schema validation already bounded the message and the history length, so
     # an oversized request never reaches the provider. No second check needed.
-    client_ip = request.client.host if request.client else "unknown"
+    #
+    # `resolve_client_ip`, not `request.client.host`. Behind Render the socket
+    # peer is Render's own proxy, so every visitor on the internet shares one
+    # key and the limiter becomes a global throttle: one person asking ten
+    # questions locks out everyone else. The helper only honours the forwarded
+    # header when the peer is a trusted proxy, which is the same rule the send
+    # route uses, for the same reason.
+    client_ip = resolve_client_ip(
+        request.client.host if request.client else "unknown",
+        request.headers.get("x-forwarded-for"),
+        _settings(),
+    )
     allowed, retry_after = _limiter.check(client_ip)
     if not allowed:
         log.info("rate limited %s", client_ip)
@@ -76,13 +88,24 @@ async def chat(request: Request, body: ChatRequest) -> StreamingResponse:
             headers={"retry-after": str(retry_after)},
         )
 
-    llm = build_llm_client(_settings())
+    settings = _settings()
+    llm = build_llm_client(settings)
 
     history = [ChatMessage(role=turn.role, text=turn.text) for turn in body.history]
     log.info(
         "chat turn",
         extra={"history_turns": len(history), "chars": len(body.message)},
     )
+
+    # Retention, opportunistically. There is no cron on this tier, so container
+    # boot plus a one-in-fifty request is the whole schedule.
+    #
+    # Started here and never awaited: the LLM call is already open for several
+    # seconds, and holding the first token for a DELETE on a table that is nearly
+    # always empty buys nothing. The task swallows its own failures, so nothing
+    # surfaces if it dies here.
+    if settings.database_url:
+        asyncio.create_task(maybe_sweep(settings))
 
     return StreamingResponse(
         _frames(run_chat_turn(llm, body.message, history)),
