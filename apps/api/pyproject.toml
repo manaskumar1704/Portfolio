@@ -38,7 +38,12 @@ asyncio_mode = "auto"
 # `integration` needs a live database and `slow` loads the ONNX embedding model.
 # Both are excluded by default so `uv run pytest` is a few seconds on a machine
 # with no credentials and no model cache.
-addopts = "-m 'not integration and not slow'"
+#
+# `--continue-on-collection-errors` is what lets a red test file stay useful while
+# its implementation is being written. Without it, one unimportable module aborts
+# the whole run and you cannot see whether the 190 tests that do import still
+# pass. With it, the missing module is reported as a failure for that file alone.
+addopts = "-m 'not integration and not slow' --continue-on-collection-errors"
 markers = [
   "integration: needs a real DATABASE_URL, skipped unless -m integration is passed",
   "slow: loads the embedding model into memory, skipped unless -m slow is passed",

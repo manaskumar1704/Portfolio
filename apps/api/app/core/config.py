@@ -75,15 +75,52 @@ class Settings(BaseSettings):
     # minute, and a recruiter asking twice should not cost two API calls.
     github_cache_ttl: int = 900
     github_timeout_seconds: float = 8.0
-    # Phase 6. Present in config from P5 so the key has a home before anything
-    # uses it, but nothing reads either until the send route exists.
+    # Phase 6. The visitor's IP is personal data, so only a salted hash of it is
+    # stored — and the hash is nulled the moment a message is sent.
+    #
+    # `ip_hash_salt` must be a long random string. Losing it means existing
+    # hashes can no longer be matched against an incoming request, so every
+    # outstanding draft becomes unapprovable. That is the intended failure mode:
+    # drafts are abandoned, never sent by someone else.
+    ip_hash_salt: str = ""
+
+    # Peers allowed to set X-Forwarded-For. Empty means "trust nobody", which is
+    # the correct default: with an empty list the IP check degrades to the socket
+    # peer and cannot be spoofed, at the cost of breaking approval for everyone
+    # behind a proxy. Populated after observing the real headers via
+    # GET /_probe/headers — see ADR 0006.
+    trusted_proxy_cidrs: CsvList = Field(default_factory=list)
+
+    # Resend sender. `onboarding@resend.dev` only delivers to the account's own
+    # address, so this is a working smoke test rather than a public contact
+    # path. Switch to a verified domain sender when one exists; it is a setting,
+    # not a code change.
     resend_api_key: str = ""
     contact_notify_email: str = ""
+    resend_from: str = "onboarding@resend.dev"
 
-    # Phase 6.
+    # Phase 6. Public endpoint limits.
     rate_limit_per_minute: int = 10
     rate_limit_burst: int = 10
     approve_limit_per_hour: int = 3
+
+    # The global daily send ceiling. Resend's free tier allows 100/day; this sits
+    # below it so failures, manual sends and the refund path cannot push the
+    # account over.
+    #
+    # In the database rather than in process, because an in-process counter
+    # resets on every Render spin-down: ten sends before a sleep and ten after
+    # would be twenty.
+    daily_send_cap: int = 70
+
+    # Retention. Unsent drafts are deleted after this; sent rows keep only their
+    # body for long enough to be noticed, and their IP hash is cleared on send.
+    draft_retention_days: int = 7
+    sent_row_retention_days: int = 30
+
+    # Probability that any one request triggers the retention sweep. There is no
+    # cron on this tier, so the sweep runs on boot and opportunistically here.
+    retention_sweep_percent: int = 2
 
     # Phase 7.
     mcp_auth_token: str = ""
@@ -94,10 +131,15 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
 
-    @field_validator("cors_origins", "github_pins", mode="before")
+    @field_validator("cors_origins", "github_pins", "trusted_proxy_cidrs", mode="before")
     @classmethod
     def split_csv(cls, value: object) -> object:
-        """Accept `a,b` from the environment; leave real lists alone for tests."""
+        """Accept `a,b` from the environment; leave real lists alone for tests.
+
+        An empty string is the same as unset. `TRUSTED_PROXY_CIDRS=` in a `.env`
+        file is how "trust nobody" is spelled, and it must not become `[""]`,
+        which would be a malformed CIDR rather than an empty allowlist.
+        """
         if isinstance(value, str):
             return [part.strip() for part in value.split(",") if part.strip()]
         return value
@@ -105,6 +147,39 @@ class Settings(BaseSettings):
     @property
     def tracing_enabled(self) -> bool:
         return bool(self.langfuse_public_key and self.langfuse_secret_key)
+
+    @property
+    def ip_hashing_enabled(self) -> bool:
+        """Whether visitor IPs can be hashed at all.
+
+        Without a salt there is nothing to hash *with*, and a draft written while
+        the salt was missing could never be approved afterwards. Callers refuse to
+        create a draft rather than storing a hash of an unsalted address, which
+        would be reversible by brute force over the whole IPv4 space.
+        """
+        return len(self.ip_hash_salt) >= 16
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.resend_api_key and self.contact_notify_email)
+
+    def require_email(self) -> None:
+        """Fail at boot, naming the variable, when sending is half-configured."""
+        missing = [
+            name
+            for name, value in (
+                ("RESEND_API_KEY", self.resend_api_key),
+                ("CONTACT_NOTIFY_EMAIL", self.contact_notify_email),
+            )
+            if not value
+        ]
+        if missing:
+            raise RuntimeError(
+                "Email sending is enabled but not configured. Set: "
+                + ", ".join(missing)
+                + ". The send route refuses to report success without them, "
+                "rather than silently dropping a visitor's message."
+            )
 
     @property
     def llm_api_key(self) -> str:
