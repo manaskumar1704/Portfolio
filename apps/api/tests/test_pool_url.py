@@ -8,7 +8,8 @@ driver bug and is not.
 
 import pytest
 
-from app.db.pool import normalize_async_url
+from app.core.config import Settings
+from app.db.pool import create_engine, normalize_async_url
 
 # Exactly what the Neon console hands out.
 NEON_URL = (
@@ -45,6 +46,54 @@ def test_channel_binding_only_url_still_works() -> None:
     assert normalize_async_url("postgresql+asyncpg://h/d?channel_binding=require") == (
         "postgresql+asyncpg://h/d"
     )
+
+
+# --- Engine settings ------------------------------------------------------
+#
+# These need no database, so they live here rather than in test_pool.py, which is
+# integration-marked and therefore skipped on a machine with no credentials.
+#
+# Both are guesses about somebody else's tier limit, which is exactly the kind of
+# value that rots silently. Asserted, so a change to Neon's terms shows up as a
+# failing test instead of a flake three weeks later.
+
+
+def test_connections_recycle_inside_neons_suspend_window() -> None:
+    """`pool_recycle` must be *under* 5 minutes, not merely under the old 10.
+
+    Neon suspends the free compute after 5 minutes of inactivity. A connection
+    older than that can be handed out with its backend already gone, and the first
+    query raises `ConnectionDoesNotExistError` rather than returning an answer.
+
+    Observed as a CI flake that looked like a bug in the send route.
+    """
+    engine = create_engine(Settings(database_url=NEON_URL))
+
+    assert engine.pool._recycle < 300, (
+        f"pool_recycle={engine.pool._recycle}s is not inside Neon's 5-minute free-tier "
+        "suspend window; a long test run will see ConnectionDoesNotExistError"
+    )
+
+
+def test_pre_ping_is_on() -> None:
+    """The other half of the same protection.
+
+    Pre-ping checks a connection before handing it out, which catches the
+    ordinary case. It cannot catch one that dies between the ping and the query,
+    which is why `pool_recycle` exists alongside it.
+    """
+    engine = create_engine(Settings(database_url=NEON_URL))
+
+    assert engine.pool._pre_ping is True
+
+
+def test_the_pool_is_five_connections_with_no_overflow() -> None:
+    """The free plan has 0.25 CU. Five is generous for a portfolio, and
+    `max_overflow=0` means a burst cannot open connections the plan cannot hold."""
+    engine = create_engine(Settings(database_url=NEON_URL))
+
+    assert engine.pool.size() == 5
+    assert engine.pool._max_overflow == 0
 
 
 def test_no_query_string_is_untouched() -> None:

@@ -50,12 +50,12 @@ from .chunk import chunk_file
 
 log = get_logger(__name__)
 
-# Skip these everywhere. `_test` is fixtures, `_source` holds PDFs, and a leading
-# underscore is the convention for "not corpus".
 # Directories the ingest never walks. `_test` is fixtures, `_source` holds PDFs,
-# and `_converted` is intermediate output from `from_pdf.py`. A leading underscore
-# is the convention for "not corpus" and is honoured in `discover` as well, so a
-# new `_something` directory is skipped without editing this set.
+# and `_converted` is intermediate output from `from_pdf.py`.
+#
+# This set is documentation, not the guard. `discover` skips anything with a
+# leading underscore, so a new `_something` directory is excluded without editing
+# this list — the set exists so the three well-known ones are visible to a reader.
 SKIP_DIRS = {"_test", "_source", "_converted"}
 
 # Prose about the corpus rather than content from it. `_test/README.md` explains
@@ -63,6 +63,35 @@ SKIP_DIRS = {"_test", "_source", "_converted"}
 # outrank `contact.md` for the question "what is his email?", which is precisely
 # the kind of self-referential noise a corpus must not contain.
 PROSE_FILENAMES = {"README.md", "readme.md", "INDEX.md", "index.md"}
+
+
+def _is_excluded(part: str) -> bool:
+    """Whether one path component keeps a file out of the corpus.
+
+    A leading underscore is the convention for "not corpus", which covers
+    `SKIP_DIRS` and anything that joins them later. `.git` is the other half.
+    """
+    return part in SKIP_DIRS or part.startswith("_") or part.startswith(".")
+
+
+def _directory_is_excluded(directory: Path) -> bool:
+    """Whether the corpus root itself is a directory we refuse to ingest.
+
+    **This is the check that was missing, and its absence put 24 chunks of a
+    fictional person into a real database.**
+
+    `discover` compared each file's path *relative to the directory it was
+    given*. Pointed at `corpus/` that worked: `_test` was a component and was
+    skipped. Pointed at `corpus/_test`, `relative_to` produced `about.md`, the
+    `_test` component was never examined, and every fixture looked like ordinary
+    corpus.
+
+    So the caller could defeat the guard by choosing a different `--dir`, which is
+    the one thing the guard exists to prevent. Now the root is checked too, and
+    `--dir corpus/_test` discovers nothing rather than quietly loading fiction.
+    """
+    name = directory.name
+    return _is_excluded(name) or directory.resolve().name in SKIP_DIRS
 
 
 @dataclass
@@ -78,13 +107,19 @@ def discover(directory: Path) -> list[Path]:
     Skips underscore-prefixed directories and README-style prose. Both are
     deliberate: the first keeps fixtures and PDFs out of a real ingest, the
     second keeps documentation about the corpus from being treated as corpus.
+
+    Returns an empty list if `directory` is itself a directory we refuse to
+    ingest. An empty result is loud — the run writes nothing and the preflight
+    reports zero chunks — whereas ingesting fiction is quiet.
     """
+    if _directory_is_excluded(directory):
+        log.warning("refusing to ingest %s: it is not a corpus directory", directory)
+        return []
+
     return sorted(
         p
         for p in directory.rglob("*.md")
-        if not any(
-            part in SKIP_DIRS or part.startswith(".") for part in p.relative_to(directory).parts
-        )
+        if not any(_is_excluded(part) for part in p.relative_to(directory).parts)
         and p.name not in PROSE_FILENAMES
     )
 

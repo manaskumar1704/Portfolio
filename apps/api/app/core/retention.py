@@ -108,7 +108,9 @@ async def sweep_once(settings: Settings) -> SweepResult:
         # `try_` rather than the blocking form: waiting would put a DELETE on the
         # request path.
         acquired = (
-            await session.execute(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID})
+            await session.execute(
+                text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID}
+            )
         ).scalar_one()
 
         if not acquired:

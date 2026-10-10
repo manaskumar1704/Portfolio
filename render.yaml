@@ -73,8 +73,18 @@ services:
         value: production
       - key: LOG_LEVEL
         value: INFO
-      # The Vercel frontend origin. Empty means no CORS headers at all, so the
-      # browser cannot read a response — safe, but the site does not work.
+      # STRICT ALLOWLIST. Exact origins, comma-separated, no wildcards.
+      #
+      # The app does not pattern-match: `https://example.com.evil.test` is not
+      # covered by `https://example.com` and must not be, which is the whole
+      # reason for an allowlist rather than a prefix check.
+      #
+      # This is the Vercel production URL, nothing else. To verify a preview
+      # build, add that preview's exact origin here, redeploy, test, then remove
+      # it. There is no wildcard option on purpose — see docs/DEPLOY.md.
+      #
+      # Empty means the browser gets no Access-Control-Allow-Origin and cannot
+      # read any response at all, and the app refuses to boot in production.
       - key: CORS_ORIGINS
         sync: false
 
@@ -162,6 +172,23 @@ services:
       # real header or trusts a stranger's.
       - key: TRUSTED_PROXY_CIDRS
         value: ""
+
+      # TEMPORARY, and deliberately absent by default.
+      #
+      # Set this in the Render dashboard only for the duration of the probe step,
+      # then remove it. It is the bearer for GET /_probe/headers, which reports
+      # the socket peer address so TRUSTED_PROXY_CIDRS can be filled from
+      # observation rather than a guess. Empty means the route 404s for everyone,
+      # including whoever finds it.
+      #
+      # There is a follow-up commit that deletes app/api/probe.py outright. Do not
+      # leave the token set after the probe has been read.
+      - key: PROBE_TOKEN
+        value: ""
+
+      # Not in this file, on purpose: MCP_AUTH_TOKEN is phase 7 and the Langfuse
+      # host has a working default. Add them when the phase that uses them lands,
+      # so there is no unused configuration to keep in sync.
 
       - key: LANGFUSE_PUBLIC_KEY
         sync: false

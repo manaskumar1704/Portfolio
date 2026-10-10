@@ -242,7 +242,9 @@ def test_the_limiter_keys_on_the_visitor_not_the_proxy(stub_chat, monkeypatch) -
 
     with TestClient(app, client=("10.0.0.5", 5000)) as client:
         first = client.post("/chat", json={"message": "hi"}, headers=_forwarded(VISITOR))
-        second = client.post("/chat", json={"message": "hi again"}, headers=_forwarded(OTHER_VISITOR))
+        second = client.post(
+            "/chat", json={"message": "hi again"}, headers=_forwarded(OTHER_VISITOR)
+        )
 
     assert first.status_code == 200
     assert second.status_code == 200, "two visitors shared one budget"

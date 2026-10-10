@@ -72,7 +72,9 @@ async def status_of(message_id: int) -> str | None:
 
     async with pool.session_scope() as session:
         return (
-            await session.execute(text("SELECT status FROM messages WHERE id = :id"), {"id": message_id})
+            await session.execute(
+                text("SELECT status FROM messages WHERE id = :id"), {"id": message_id}
+            )
         ).scalar_one_or_none()
 
 
@@ -113,7 +115,9 @@ async def test_a_stuck_sending_row_is_deleted_once_expired() -> None:
 
 async def test_an_unexpired_draft_survives() -> None:
     """The sweep must not delete a draft a visitor is still going to approve."""
-    row = await insert(status="pending", created_at=ago(hours=2), expires_at=datetime.now(UTC) + timedelta(hours=2))
+    row = await insert(
+        status="pending", created_at=ago(hours=2), expires_at=datetime.now(UTC) + timedelta(hours=2)
+    )
 
     await sweep_once(settings())
 
@@ -126,7 +130,9 @@ async def test_an_unexpired_draft_past_the_retention_window_is_deleted() -> None
     A draft can be written with an expiry far in the future, and if a bug or a
     hand-edited row ever produced one, the age rule still removes it.
     """
-    row = await insert(status="pending", created_at=ago(days=40), expires_at=datetime.now(UTC) + timedelta(days=30))
+    row = await insert(
+        status="pending", created_at=ago(days=40), expires_at=datetime.now(UTC) + timedelta(days=30)
+    )
 
     result = await sweep_once(settings(draft_retention_days=7))
 
@@ -155,7 +161,9 @@ async def test_an_old_sent_row_is_deleted() -> None:
 
 async def test_a_failed_row_ages_out_like_a_sent_one() -> None:
     """`sent_at` is null for a row that never sent, so it ages from `created_at`."""
-    row = await insert(status="failed", sent_at=None, created_at=ago(days=40), expires_at=ago(days=40))
+    row = await insert(
+        status="failed", sent_at=None, created_at=ago(days=40), expires_at=ago(days=40)
+    )
 
     result = await sweep_once(settings(sent_row_retention_days=30))
 
@@ -170,7 +178,9 @@ async def test_the_sweep_does_not_touch_an_orphan_hash_on_a_live_row() -> None:
     needed. The sweep deleting rows is a separate concern; doing both here would
     quietly shorten how long a live draft's identifier survives.
     """
-    row = await insert(status="pending", created_at=ago(hours=1), expires_at=datetime.now(UTC) + timedelta(hours=1))
+    row = await insert(
+        status="pending", created_at=ago(hours=1), expires_at=datetime.now(UTC) + timedelta(hours=1)
+    )
 
     await sweep_once(settings())
 
@@ -192,7 +202,9 @@ async def test_stale_send_counters_are_removed() -> None:
     # invisible to the sweep's own connection — and the assertion would then be
     # testing transaction visibility rather than the sweep.
     async with pool.session_scope() as session:
-        await session.execute(text("DELETE FROM send_counters WHERE day = :day"), {"day": stale_day})
+        await session.execute(
+            text("DELETE FROM send_counters WHERE day = :day"), {"day": stale_day}
+        )
         await session.execute(
             text("INSERT INTO send_counters (day, count) VALUES (:day, 1)"), {"day": stale_day}
         )
@@ -244,7 +256,9 @@ async def test_a_held_lock_skips_the_sweep_rather_than_waiting() -> None:
     async with pool.get_engine().connect() as holder:
         transaction = await holder.begin()
         acquired = (
-            await holder.execute(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID})
+            await holder.execute(
+                text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID}
+            )
         ).scalar_one()
         assert acquired, "could not take the lock to test against"
 
@@ -272,7 +286,9 @@ async def test_the_lock_is_released_after_a_sweep() -> None:
 
     async with pool.session_scope() as session:
         second_take = (
-            await session.execute(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID})
+            await session.execute(
+                text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": SWEEP_LOCK_ID}
+            )
         ).scalar_one()
 
     assert second_take is True, "the previous sweep leaked its lock"

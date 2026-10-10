@@ -73,9 +73,23 @@ def create_engine(settings: Settings) -> AsyncEngine:
         # for a portfolio; more just holds memory the container does not have.
         max_overflow=0,
         pool_pre_ping=True,
-        # Neon reaps idle backends. Recycling at 10 minutes keeps the pool
-        # inside the window where connections are still alive.
-        pool_recycle=600,
+        # Recycle well inside Neon's idle window, not just inside it.
+        #
+        # Neon's free tier suspends the compute after 5 minutes of inactivity.
+        # `pool_recycle` is the age at which a connection is discarded on checkout,
+        # so setting it above that window means a connection can be handed out
+        # after the backend behind it has already been suspended — and the first
+        # query on it raises `ConnectionDoesNotExistError` rather than returning an
+        # answer. Observed as a CI flake that turned out to be this.
+        #
+        # `pool_pre_ping` is what catches the ordinary case; it cannot catch a
+        # connection that dies between the ping and the query, and a long test run
+        # or a slow container gives that window time to be hit.
+        #
+        # 240s keeps every pooled connection comfortably younger than the 5-minute
+        # suspend. It costs a reconnect every four minutes on a quiet site, which
+        # is a TCP handshake to a server that is already awake.
+        pool_recycle=240,
         echo=False,
     )
 

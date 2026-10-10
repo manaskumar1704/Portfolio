@@ -94,7 +94,9 @@ def test_the_gemini_key_is_not_demanded_when_groq_is_the_provider() -> None:
 
 
 def test_a_missing_groq_key_is_reported_when_groq_is_the_provider() -> None:
-    problems = production(gemini_api_key="", llm_provider="groq", groq_api_key="").production_problems()
+    problems = production(
+        gemini_api_key="", llm_provider="groq", groq_api_key=""
+    ).production_problems()
 
     assert any("GROQ_API_KEY" in problem for problem in problems), problems
 
