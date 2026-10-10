@@ -1,14 +1,28 @@
 import type { ChatMessage } from "@/lib/api/types";
+import { AgentMarkdown } from "./markdown";
+import { Citations } from "./citations";
 
-/** One chat row: `>` for the user, glowing `✳` for the agent. */
+/**
+ * One chat row: `>` for the user, glowing `✳` for the agent.
+ *
+ * The agent's text goes through `AgentMarkdown` rather than being rendered as
+ * plain text. A model writes lists and tables, and `whitespace-pre-wrap` on a
+ * markdown bullet produces a wall of misaligned characters. It also means the
+ * rendering path has to be safe, which is the reason `AgentMarkdown` exists and
+ * the reason it refuses raw HTML — see ADR 0007.
+ *
+ * The user's own text is rendered as text. It is not model output, but treating
+ * it identically is the cheaper rule and the one with no exceptions to
+ * remember.
+ */
 export function Message({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
 
   return (
-    <div className="flex animate-[msgin_260ms_var(--ease)_both] items-start gap-2.5 overflow-wrap-anywhere whitespace-pre-wrap">
+    <div className="flex animate-[msgin_260ms_var(--ease)_both] items-start gap-2.5 overflow-wrap-anywhere">
       <span
         aria-hidden="true"
-        className={`w-[1.1em] flex-none text-center ${
+        className={`w-[1.1em] flex-none pt-[0.1em] text-center ${
           isUser
             ? "text-dim"
             : "text-accent [text-shadow:0_0_8px_rgba(255,176,0,.4)]"
@@ -16,13 +30,18 @@ export function Message({ message }: { message: ChatMessage }) {
       >
         {isUser ? ">" : "✳"}
       </span>
-      <span className="min-w-0 flex-1 text-text">
+
+      <div className="min-w-0 flex-1 text-text">
         {message.thinking ? (
           <span className="dots text-dim">thinking</span>
         ) : (
-          message.text
+          <AgentMarkdown text={message.text} />
         )}
-      </span>
+
+        {message.citations && message.citations.length > 0 && (
+          <Citations citations={message.citations} />
+        )}
+      </div>
     </div>
   );
 }

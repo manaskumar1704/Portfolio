@@ -4,19 +4,24 @@ import { usePathname } from "next/navigation";
 import { Composer } from "@/components/ui/composer";
 import { PanelCap } from "@/components/ui/panel-cap";
 import { AgentBackground } from "@/features/background/agent-background";
+import { DraftApproval } from "@/features/contact/draft-approval";
+import { PrivacyNote } from "@/features/contact/privacy-note";
 import { Landing } from "./landing";
 import { Message } from "./message";
-import { useScriptedAgent } from "./use-scripted-agent";
+import { useAgent } from "./use-agent";
 
 /**
  * The agent console: background, panel, log, landing layer, composer.
  *
  * Full height on home, where it is the hero. Shorter elsewhere, so the folder
  * or file the visitor just `cd`-ed into is visible without scrolling.
+ *
+ * The composer says `waking…` while the free tier's cold start is in progress,
+ * which is the only place `status` is surfaced. Everything else is in the log.
  */
 export function AgentPanel() {
-  const { messages, value, busy, dismissed, onValueChange, send, dismiss } =
-    useScriptedAgent();
+  const { messages, value, busy, dismissed, status, draft, readToken, clearDraft, onValueChange, send, dismiss } =
+    useAgent();
   const isHome = usePathname() === "/";
 
   return (
@@ -54,6 +59,10 @@ export function AgentPanel() {
               {messages.map((m) => (
                 <Message key={m.id} message={m} />
               ))}
+
+              {draft && (
+                <DraftApproval draft={draft} readToken={readToken} onSent={clearDraft} />
+              )}
             </div>
             {isHome ? <Landing dismissed={dismissed} /> : null}
           </div>
@@ -62,9 +71,11 @@ export function AgentPanel() {
             <Composer
               value={value}
               busy={busy}
+              placeholder={status === "waking" ? "waking the agent…" : undefined}
               onValueChange={onValueChange}
               onSubmit={() => void send()}
             />
+            <PrivacyNote />
           </div>
 
           <div className="px-3 pt-2">

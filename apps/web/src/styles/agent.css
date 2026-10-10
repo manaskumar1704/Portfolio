@@ -1,0 +1,188 @@
+/* Agent answer rendering, citations, the approval card, and the privacy note.
+ *
+ * These four components render content the model produced, so the styling has
+ * one job beyond looking right: make it obvious where the answer ends and the
+ * evidence begins. A paragraph that runs into a citation block with no visual
+ * break reads as one continuous claim, which is the opposite of what citing
+ * sources is for.
+ *
+ * Every colour comes from tokens.css. No literals here.
+ */
+
+/* --- Markdown ------------------------------------------------------------ */
+
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+
+.md-p { margin: 0 0 0.55em; }
+
+.md h1, .md h2, .md h3, .md h4 {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.9em 0 0.4em;
+}
+.md h1 { font-size: 1.1em; }
+.md h2 { font-size: 1.04em; }
+.md h3, .md h4 { font-size: 1em; color: var(--dim); }
+
+.md ul, .md ol { margin: 0.35em 0 0.55em; padding-left: 1.35em; }
+.md li { margin: 0.15em 0; }
+.md li > p { margin: 0; }
+
+.md strong { color: var(--text); font-weight: 600; }
+.md em { color: var(--dim); }
+
+.md a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md a:hover { text-decoration-thickness: 2px; }
+
+.md code {
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 0.92em;
+  padding: 0.05em 0.35em;
+}
+
+.md pre {
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 0.5em 0 0.6em;
+  overflow-x: auto;
+  padding: 0.6em 0.7em;
+}
+.md pre code { background: none; border: 0; color: var(--text); padding: 0; }
+
+.md blockquote {
+  border-left: 2px solid var(--border-hi);
+  color: var(--dim);
+  margin: 0.5em 0;
+  padding-left: 0.75em;
+}
+
+.md hr { border: 0; border-top: 1px solid var(--border); margin: 0.8em 0; }
+
+/* A table wider than the panel scrolls rather than wrapping every cell onto
+   three lines. The agent emits comparison tables more often than you would
+   expect. */
+.md-scroll { overflow-x: auto; margin: 0.5em 0 0.6em; }
+.md table { border-collapse: collapse; font-size: 0.95em; width: 100%; }
+.md th, .md td {
+  border: 1px solid var(--border);
+  padding: 0.25em 0.5em;
+  text-align: left;
+}
+.md th { color: var(--dim); font-weight: 600; }
+
+/* An image is rendered as its alt text. See markdown.tsx: a rendered <img> is a
+   GET to a model-chosen URL from the visitor's browser. */
+.md-alt { color: var(--faint); font-style: italic; }
+
+/* --- Citations ----------------------------------------------------------- */
+
+.cites {
+  align-items: baseline;
+  border-top: 1px dotted var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em 0.6em;
+  margin-top: 0.7em;
+  padding-top: 0.4em;
+}
+
+.cites-label {
+  color: var(--faint);
+  flex: none;
+  font-size: 0.85em;
+  text-transform: lowercase;
+}
+
+.cites-list { display: flex; flex-wrap: wrap; gap: 0.35em; list-style: none; margin: 0; padding: 0; }
+
+.cite {
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  gap: 0.4em;
+  padding: 0.05em 0.4em;
+}
+
+.cite-file { color: var(--accent); font-size: 0.85em; }
+.cite-path { color: var(--faint); font-size: 0.8em; }
+
+/* --- Draft approval ------------------------------------------------------ */
+
+.draft {
+  background: var(--panel-2);
+  border: 1px solid var(--border-hi);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius);
+  margin: 0.6em 0;
+  padding: 0.7em 0.8em;
+}
+
+.draft-sent { border-left-color: var(--ok); color: var(--dim); }
+.draft-tick { color: var(--ok); margin-right: 0.35em; }
+
+.draft-head { align-items: baseline; display: flex; gap: 0.5em; margin-bottom: 0.4em; }
+.draft-label { color: var(--accent); font-size: 0.85em; text-transform: lowercase; }
+.draft-to { color: var(--faint); font-size: 0.85em; }
+
+.draft-body {
+  color: var(--dim);
+  margin: 0 0 0.7em;
+  max-height: 9em;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.draft-approve {
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--accent-foreground);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.35em 0.9em;
+}
+.draft-approve:hover:not(:disabled) { filter: brightness(1.08); }
+.draft-approve:disabled { cursor: default; opacity: 0.55; }
+.draft-approve:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.draft-failed { color: var(--err); font-size: 0.9em; margin: 0.6em 0 0; }
+.draft-lapsed { color: var(--faint); font-size: 0.9em; margin: 0.5em 0 0; }
+
+/* --- Privacy note -------------------------------------------------------- */
+
+.privacy { margin: 0 clamp(14px, 4vw, 40px) 0.9em; }
+
+.privacy-summary {
+  color: var(--faint);
+  cursor: pointer;
+  font-size: 0.85em;
+  list-style: none;
+}
+.privacy-summary::-webkit-details-marker { display: none; }
+.privacy-summary::before { content: "› "; }
+.privacy[open] .privacy-summary::before { content: "⌄ "; }
+.privacy-summary:hover { color: var(--dim); }
+.privacy-summary:focus-visible { outline: 1px solid var(--border-hi); outline-offset: 2px; }
+
+.privacy-body {
+  border-left: 1px solid var(--border);
+  color: var(--faint);
+  font-size: 0.85em;
+  line-height: 1.5;
+  margin-top: 0.4em;
+  max-width: 62ch;
+  padding-left: 0.7em;
+}
+.privacy-body p { margin: 0 0 0.5em; }
+.privacy-body strong { color: var(--dim); font-weight: 600; }

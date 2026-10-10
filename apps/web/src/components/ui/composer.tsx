@@ -7,10 +7,22 @@ type ComposerProps = {
   busy: boolean;
   onValueChange: (value: string) => void;
   onSubmit: () => void;
+  /**
+   * Replaces the default prompt. Used for `waking…` while a sleeping free-tier
+   * instance is being woken — the alternative is an input that looks live and
+   * silently swallows the first question.
+   */
+  placeholder?: string;
 };
 
 /** Prompt bar: `> input [↑]`. Turns amber while the agent is busy. */
-export function Composer({ value, busy, onValueChange, onSubmit }: ComposerProps) {
+export function Composer({
+  value,
+  busy,
+  onValueChange,
+  onSubmit,
+  placeholder = "Ask anything about Manas…",
+}: ComposerProps) {
   const disabled = value.trim().length === 0 || busy;
 
   return (
@@ -32,7 +44,7 @@ export function Composer({ value, busy, onValueChange, onSubmit }: ComposerProps
         type="text"
         value={value}
         onChange={(e) => onValueChange(e.target.value)}
-        placeholder="Ask anything about Manas…"
+        placeholder={placeholder}
         autoComplete="off"
         autoCapitalize="off"
         autoCorrect="off"
