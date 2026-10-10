@@ -1,9 +1,24 @@
 """Request and response models for `POST /chat`.
 
-`ChatReply` is the whole-payload shape `apps/web/src/lib/api/types.ts` already
-expects from the backend, kept exactly so the fixture swap is a one-file
-change. The event models are the SSE wire format added in phase 3; the
-frontend's stream reader is the only other consumer.
+`ChatRequest` is the only model the route actually validates. The response is
+`text/event-stream`, not a payload, so there is no reply model here.
+
+## Why there are no event models
+
+Phase 3 wrote seven `*Event` Pydantic models to document the SSE wire format.
+They were never used — `services/chat.py` builds a `StreamEvent` dataclass with
+a plain dict payload and the router serialises it — and they drifted:
+
+- `DraftEvent` had no `expires_at`, which the emitter has sent since phase 6.
+- `DoneEvent` had no `text_length`, which the emitter has sent since phase 3.
+
+A model that is never validated and is missing fields reads as the contract while
+being wrong, which is worse than having no model at all. They are deleted, and
+`tests/test_contracts.py` now pins the event *names* directly against the
+frontend's `ChatEvent` union, which is the real contract.
+
+That check is live in a way the models never were: adding a new event to the
+emitter without adding it to `types.ts` fails a test.
 """
 
 from typing import Annotated, Literal
@@ -36,80 +51,6 @@ class HistoryTurn(BaseModel):
 
     role: ChatRole
     text: Annotated[str, Field(max_length=MAX_MESSAGE_CHARS)]
-
-
-class ChatReply(BaseModel):
-    """The non-streaming shape. Matches the frontend's `ChatReply` type."""
-
-    reply: str
-
-
-# --- SSE wire format -------------------------------------------------------
-#
-# Each frame is `event: <name>` plus a JSON `data:` payload of the model below.
-# Named events let the frontend ignore a type it does not know instead of
-# choking on an unexpected shape, which is why this is not bare NDJSON.
-
-
-class DeltaEvent(BaseModel):
-    """A fragment of assistant prose. Concatenate `text` to render."""
-
-    text: str
-
-
-class ToolCallEvent(BaseModel):
-    """The model asked for a tool. `id` matches the following ToolResultEvent."""
-
-    id: str
-    name: str
-    arguments: dict
-
-
-class ToolResultEvent(BaseModel):
-    id: str
-    name: str
-    ok: bool
-    result: object
-    # Shown to the visitor. Never the raw traceback.
-    error: str | None = None
-
-
-class CitationEvent(BaseModel):
-    """Provenance for a claim the model just made."""
-
-    source_path: str
-    label: str
-
-
-class DraftEvent(BaseModel):
-    """A message is waiting for the visitor's approval. Not sent yet.
-
-    `approval_token` goes to the browser only. It must never enter a prompt, a
-    log line, or a tool result, or the model can talk a visitor into sending.
-    """
-
-    id: int
-    name: str
-    email: str
-    body: str
-    approval_token: str
-
-
-class BusyEvent(BaseModel):
-    """Rate limited or the upstream provider is saturated. Not an error."""
-
-    retry_after_seconds: int
-    message: str
-
-
-class ErrorEvent(BaseModel):
-    message: str
-
-
-class DoneEvent(BaseModel):
-    """Terminal frame. `sources` is every citation seen in this answer."""
-
-    sources: list[str] = Field(default_factory=list)
 
 
 ChatRequest.model_rebuild()

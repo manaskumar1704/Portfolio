@@ -7,12 +7,16 @@ These helpers do real database work and skip without DATABASE_URL, so they are
 integration-shaped even though the tests that use them do not carry the marker.
 """
 
+import asyncio
 from dataclasses import dataclass
 
 import pytest
 
 from app.core.client_ip import hash_ip
+from app.core.logging import get_logger
 from app.db import pool
+
+log = get_logger(__name__)
 
 DEFAULT_SALT = "a-sufficiently-long-test-salt"
 
@@ -25,13 +29,31 @@ async def ensure_pool() -> None:
     between pytest-asyncio and a sync fixture is not worth depending on: an async
     test that inserts a row should not care whether the client fixture ran first.
     Idempotent, because `pool.setup` returns early when an engine exists.
+
+    **One retry.** Neon suspends the free compute after five minutes idle, and
+    while it is waking, resolving its hostname intermittently fails with
+    `socket.gaierror`. That is the free tier's behaviour, not a defect in
+    anything under test — but it makes CI flaky, and `autoDeployTrigger:
+    checksPass` means a flaky CI blocks deploys.
+
+    The retry is here rather than in `pool.setup` on purpose: in production a
+    DNS blip should cost one 500, which is honest, and papering over it in the
+    connection path would hide a real outage behind retries.
     """
     from app.core.config import get_settings
 
     if not get_settings().database_url:
         pytest.skip("DATABASE_URL not set")
 
-    await pool.setup(get_settings())
+    for attempt in range(2):
+        try:
+            await pool.setup(get_settings())
+            return
+        except (OSError, ConnectionError, TimeoutError) as exc:
+            if attempt == 1:
+                raise
+            log.warning("connection attempt failed (%s); retrying once", type(exc).__name__)
+            await asyncio.sleep(3)
 
 
 async def teardown_pool() -> None:

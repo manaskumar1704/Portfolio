@@ -346,22 +346,49 @@ CIDR is wrong. Compare it character by character with `peer`.
 The probe reports what the server sees about your connection. It is fine behind a
 token you are about to delete. It is not something to leave on a public site.
 
+Run these three commands in order. They are idempotent — if you have already run
+them, nothing breaks.
+
 ```bash
+# 1. Remove the route and its tests
 git rm apps/api/app/api/probe.py apps/api/tests/test_probe.py
+
+# 2. Drop the two references in app/main.py
+#    - remove ", probe" from:  from app.api import chat, health, messages, probe
+#    - remove the whole line:  app.include_router(probe.router)
+
+# 3. Prove nothing else referenced it
+cd apps/api && uv run pytest -q && cd ../..
 ```
 
-Then remove the two references in `apps/api/app/main.py`: drop `, probe` from the
-`from app.api import ...` line, and drop the `app.include_router(probe.router)`
-line.
+Then push:
 
 ```bash
-cd apps/api && uv run pytest -q tests/test_no_send_in_p6.py && cd ../..
-git add -A && git commit -m "Remove the header probe route" && git push
+git add -A
+git commit -m "Remove the header probe route"
+git push
 ```
 
-Render redeploys automatically once CI passes.
+**Success looks like:** all tests pass, the push is green, and after Render
+redeploys, `/_probe/headers` returns `404` for everyone:
 
-**Success looks like:** `/_probe/headers` returns 404 for everyone.
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://portfolio-api.onrender.com/_probe/headers
+# 404
+```
+
+**Also do this in Render:** set `PROBE_TOKEN` to an **empty value**. The route is
+gone either way, but an unused secret sitting in a dashboard is a thing to
+remember, and this way there is nothing to remember.
+
+**If you would rather keep the route:** that is a reasonable choice, and it is
+safe as long as `PROBE_TOKEN` is empty — with no token the route returns 404 for
+everyone, including whoever finds it. Seven tests in `tests/test_probe.py` cover
+exactly that, including a prefix of the real token. What you must not do is leave
+a token set on a public deployment.
+
+**Rollback:** `git revert <the commit>`. The route comes back, `TRUSTED_PROXY_CIDRS`
+is still populated, and nothing else was touched.
 
 ---
 
