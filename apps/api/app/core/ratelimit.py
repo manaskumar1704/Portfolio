@@ -44,13 +44,31 @@ class _Bucket:
 class RateLimiter:
     """A token bucket per key. `key` is a client IP in this codebase."""
 
-    def __init__(self, per_minute: int | None = None, burst: int | None = None) -> None:
+    def __init__(
+        self,
+        per_minute: int | None = None,
+        burst: int | None = None,
+        per_hour: int | None = None,
+    ) -> None:
+        """`per_hour` wins over `per_minute` when given.
+
+        It exists because the approval cap is three *per hour*, and
+        `per_minute=0.05` is not a number anyone should have to write to say that.
+
+        The bug this replaced: the send route built `RateLimiter()` with no
+        arguments, so it read `rate_limit_per_minute` (10/min) and ignored
+        `approve_limit_per_hour` completely. The setting existed and did nothing.
+        """
         from app.core.config import get_settings
 
         settings = get_settings()
-        self._rate = (
-            per_minute if per_minute is not None else settings.rate_limit_per_minute
-        ) / 60.0
+
+        if per_hour is not None:
+            self._rate = per_hour / 3600.0
+        else:
+            minutes = per_minute if per_minute is not None else settings.rate_limit_per_minute
+            self._rate = minutes / 60.0
+
         self._burst = float(burst if burst is not None else settings.rate_limit_burst)
         self._buckets: dict[str, _Bucket] = {}
         self._last_sweep = time.monotonic()

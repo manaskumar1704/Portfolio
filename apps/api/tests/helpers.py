@@ -9,11 +9,34 @@ integration-shaped even though the tests that use them do not carry the marker.
 
 from dataclasses import dataclass
 
-from app.core.client_ip import hash_ip
+import pytest
 
+from app.core.client_ip import hash_ip
 from app.db import pool
 
 DEFAULT_SALT = "a-sufficiently-long-test-salt"
+
+
+async def ensure_pool() -> None:
+    """Build the engine if it is not already up.
+
+    `TestClient` runs the app's lifespan on its own event loop, in another thread.
+    The engine is a module-level singleton so it survives that, but the ordering
+    between pytest-asyncio and a sync fixture is not worth depending on: an async
+    test that inserts a row should not care whether the client fixture ran first.
+    Idempotent, because `pool.setup` returns early when an engine exists.
+    """
+    from app.core.config import get_settings
+
+    if not get_settings().database_url:
+        pytest.skip("DATABASE_URL not set")
+
+    await pool.setup(get_settings())
+
+
+async def teardown_pool() -> None:
+    """Dispose the engine. Call from the same loop that used it."""
+    await pool.teardown()
 
 
 @dataclass(frozen=True)
@@ -46,6 +69,8 @@ async def make_pending_draft(
     token = "test-token-" + "x" * 32
     expires = datetime.now(UTC) + timedelta(hours=72)
 
+    await ensure_pool()
+
     async with pool.session_scope() as session:
         row_id = (
             await session.execute(
@@ -68,7 +93,35 @@ async def make_pending_draft(
             )
         ).scalar_one()
 
+    _TEST_IDS.append(row_id)
+
     return PendingDraft(id=row_id, token=token)
+
+
+# Every row this module has inserted, so the cleanup below can remove exactly
+# those and nothing else. A marker column would be the same idea with an extra
+# migration; a marker in `body` would collide with a visitor's actual text.
+_TEST_IDS: list[int] = []
+
+
+async def clear_test_drafts() -> None:
+    """Delete every row `make_pending_draft` has created.
+
+    Exact by id, so a run cannot quietly remove a real message. Without this the
+    suite leaves hundreds of pending rows behind, which makes the table
+    meaningless to look at and gives the retention sweep more work than the real
+    site ever would.
+    """
+    if not _TEST_IDS:
+        return
+
+    from sqlalchemy import text
+
+    ids = list(_TEST_IDS)
+    _TEST_IDS.clear()
+
+    async with pool.session_scope() as session:
+        await session.execute(text("DELETE FROM messages WHERE id = ANY(:ids)"), {"ids": ids})
 
 
 def pending_ip_hash(ip: str, salt: str = DEFAULT_SALT) -> str:

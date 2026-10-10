@@ -198,8 +198,19 @@ async def test_a_name_with_newlines_is_flattened(monkeypatch) -> None:
     assert "\r" not in seen["name"]
 
 
-async def test_a_draft_result_does_not_contain_the_token(monkeypatch) -> None:
-    """The token goes to the browser via the SSE stream, not to the model."""
+async def test_the_draft_tool_separates_the_token_from_the_prose(monkeypatch) -> None:
+    """Rewritten for phase 6: the token is in the result now, and that is correct.
+
+    In phase 5 the tool returned no token and the browser had no way to approve a
+    message. Phase 6 puts it in the result so the chat loop can emit it as a
+    structured `draft` event, and the loop strips it again before the model sees
+    the same dict.
+
+    So the property is not "the result has no token" — it is "the token is a
+    field, not part of the prose the model reads". Asserting the former would
+    assert the feature is broken; asserting that the token leaks into
+    `confirmation_for_you` is the thing that would actually be a bug.
+    """
     from datetime import UTC, datetime, timedelta
 
     from app.services import contact as contact_service
@@ -221,6 +232,13 @@ async def test_a_draft_result_does_not_contain_the_token(monkeypatch) -> None:
 
     result = await draft_message("Ada", "ada@example.com", "Hi", "1.1.1.1")
 
-    assert "TOP-SECRET-TOKEN" not in str(result)
     assert result["status"] == "pending"
     assert result["sent"] is False
+
+    # The loop pops this key and emits it as a `draft` event. Its presence is the
+    # only way a browser ever learns the token.
+    assert result["approval_token"] == "TOP-SECRET-TOKEN"
+
+    # What the model actually reads.
+    assert "TOP-SECRET-TOKEN" not in result["confirmation_for_you"]
+    assert result["confirmation_for_you"] == contact_service.confirmation_for_model(draft)

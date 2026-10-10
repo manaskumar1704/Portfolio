@@ -159,12 +159,21 @@ async def draft_message(name: str, email: str, body: str, origin_ip: str = "") -
         # to relay verbatim.
         return {"error": str(exc)}
 
+    # `approval_token` is the send capability and is handled specially by the chat
+    # loop: stripped out of this dict before the model sees it, and re-emitted as
+    # a structured `draft` event for the browser. It must never appear in
+    # `confirmation_for_you`, which is prose the model reads.
+    #
+    # `body_preview` is a truncated copy so the approve control can show the
+    # visitor what they wrote without shipping the whole message twice.
     return {
         "draft_id": draft.id,
         "status": "pending",
         "sent": False,
         "name": draft.name,
         "email": draft.email,
+        "body_preview": draft.body[:280],
         "expires_at": draft.expires_at.isoformat(),
+        "approval_token": draft.token,
         "confirmation_for_you": contact_service.confirmation_for_model(draft),
     }

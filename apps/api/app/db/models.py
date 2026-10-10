@@ -30,14 +30,20 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy import text as sql_text
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.dialects.postgresql import DATE, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-# Every state a visitor message can be in. Phase 5 only writes 'pending'; the
-# others exist so the phase-6 send route records what it did without needing a
-# migration. Mirrored in the migration's `MESSAGE_STATUSES`; the two must agree
-# or `alembic check` proposes a type change.
-MESSAGE_STATUSES = ("pending", "sent", "expired", "failed")
+# Every state a visitor message can be in.
+#
+# `sending` is the intermediate state the atomic claim moves a row into, before
+# the provider call. Without it, a crash during the send would leave a row as
+# `pending` forever with no way to tell whether the mail went out — which is the
+# one question that matters if a visitor disputes it. `reap_stale_sends` resolves
+# those to `failed`.
+#
+# Mirrored in the migration's `MESSAGE_STATUSES`; the two must agree or
+# `alembic check` proposes a type change.
+MESSAGE_STATUSES = ("pending", "sending", "sent", "expired", "failed")
 
 
 class Base(DeclarativeBase):
@@ -146,9 +152,14 @@ class Message(Base):
         nullable=False,
     )
     approval_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    # Bound at draft time and re-checked on approval. Without it, anyone who
-    # learns a message id could confirm a stranger's draft.
-    origin_ip: Mapped[str] = mapped_column(String(45), nullable=False)
+    # A salted SHA-256 of the visitor's normalised address, never the address
+    # itself. Nulled the moment the message is sent: the IP's only job is to bind
+    # a draft to the connection that wrote it, and that job ends at approval.
+    #
+    # `origin_ip` is kept alongside it rather than dropped, so the change is
+    # backwards compatible — see ADR 0006 on migrate-first ordering.
+    origin_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # When the send capability stops working. A NULL here would read as "never
     # expires" to every query that checks it, which is the opposite of the point.
@@ -169,7 +180,30 @@ class Message(Base):
             "created_at",
             postgresql_where=sql_text("status = 'pending'"),
         ),
+        # A row with a hash still holds a traceable identifier; these are the rows
+        # the sweep's work is on. Partial, so it stays empty on a quiet site.
+        Index(
+            "ix_messages_retained",
+            "expires_at",
+            postgresql_where=sql_text("ip_hash IS NOT NULL"),
+        ),
     )
+
+
+class SendCounter(Base):
+    """One row per day. The table *is* the daily send cap.
+
+    In the database rather than in process because an in-process counter resets
+    on every Render spin-down: ten sends before a sleep and ten after would be
+    twenty. `day` is the primary key, which is what lets
+    `INSERT ... ON CONFLICT (day) DO UPDATE ... WHERE count < :cap` be the cap
+    check itself — one atomic statement, no read-modify-write.
+    """
+
+    __tablename__ = "send_counters"
+
+    day: Mapped[datetime.date] = mapped_column(DATE, primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
 
 class IngestRun(Base):

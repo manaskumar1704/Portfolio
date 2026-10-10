@@ -15,9 +15,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import chat, health
+from app.api import chat, health, messages
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger, request_id
+from app.core.retention import sweep_on_boot
 from app.db import pool as db
 
 log = get_logger(__name__)
@@ -33,11 +34,23 @@ async def lifespan(app: FastAPI):
     )
     if settings.database_url:
         await db.setup(settings)
+        # Retention on boot. There is no cron on this tier, so container start is
+        # the one reliable trigger. Swallows its own failures: a DELETE that
+        # errors must not stop the app from serving /health.
+        await sweep_on_boot(settings)
     else:
         # Local development and CI both run without a database. The app starts
         # so `/health` still answers; anything that needs Postgres fails loudly
         # on its own endpoint rather than taking the whole service down.
         log.warning("DATABASE_URL is not set; database-backed endpoints are unavailable")
+
+    # A missing GitHub configuration is a warning, not a boot failure: the tool
+    # reports "unavailable" to the model and the rest of the site works.
+    try:
+        settings.require_github()
+    except RuntimeError as exc:
+        log.warning("github tool disabled: %s", str(exc).split(".")[0])
+
     try:
         yield
     finally:
@@ -103,3 +116,4 @@ async def log_requests(
 
 app.include_router(health.router)
 app.include_router(chat.router)
+app.include_router(messages.router)

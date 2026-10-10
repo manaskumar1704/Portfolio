@@ -26,6 +26,7 @@ import inspect
 from pathlib import Path
 
 from app.main import app
+from app.services import contact as contact_service
 from app.tools import registry
 
 API_ROOT = Path(__file__).resolve().parents[1]
@@ -75,27 +76,63 @@ def test_the_registry_handler_for_drafting_is_still_the_drafter() -> None:
 # --- The split is in the right files ----------------------------------------
 
 
-def test_only_email_service_imports_resend() -> None:
-    """One file owns the provider call, and it is not reachable from a tool."""
+def test_only_email_service_makes_an_outbound_mail_call() -> None:
+    """One file owns the provider call, and it is not reachable from a tool.
+
+    Rewritten from the phase-5 version, which asked which file imports the
+    `resend` SDK. There is no SDK import any more: `send_notification` posts to
+    Resend's REST endpoint with `httpx`, because that is the seam the tests
+    replace with a `MockTransport`. Asking about an SDK nobody imports would let
+    the assertion pass vacuously.
+
+    The provider's host is the discriminator. It is the one thing that cannot
+    appear by accident in a file that is not making the call.
+    """
     offenders = []
     for path in API_ROOT.rglob("*.py"):
-        if ".venv" in path.parts or path.name == Path(__file__).name:
+        if ".venv" in path.parts or "tests" in path.parts:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore").lower()
-        if "import resend" in text or "from resend" in text:
+        if "api.resend.com" in text:
             offenders.append(str(path.relative_to(API_ROOT)))
 
+    # `tests/` is excluded as a whole rather than by filename: it asserts exactly
+    # one owner of the provider call, and the tests are where that call is
+    # exercised. Exempting individual files would be a list that grows every time
+    # a test touches Resend.
     assert offenders == ["app\\services\\email.py"], offenders
+
+
+def _all_routes() -> list:
+    """Every route in the app, including those inside included routers.
+
+    FastAPI 0.143 keeps `include_router`'d routers as a `_IncludedRouter` node
+    with an `original_router` rather than flattening them into `app.routes`. A
+    flat scan of `app.routes` finds the top-level entries and nothing else — which
+    would make the check below pass vacuously against an app with no send route
+    at all, which is the opposite of what it is for.
+    """
+    found: list = []
+    stack = list(app.routes)
+
+    while stack:
+        route = stack.pop()
+        found.append(route)
+        original = getattr(route, "original_router", None)
+        if original is not None:
+            stack.extend(getattr(original, "routes", []))
+
+    return found
 
 
 def test_the_send_route_exists_and_is_the_only_one() -> None:
     """Sending is reachable, and through exactly one door."""
     send_routes = [
         route
-        for route in app.routes
+        for route in _all_routes()
         if getattr(route, "path", "").startswith("/messages")
         and "send" in getattr(route, "path", "")
-        and "POST" in getattr(route, "methods", set())
+        and "POST" in (getattr(route, "methods", None) or set())
     ]
 
     assert len(send_routes) == 1, [getattr(r, "path", "") for r in send_routes]
@@ -114,6 +151,18 @@ def test_contact_service_still_cannot_send() -> None:
 
     for forbidden in ("resend", "smtplib", "httpx", "aiohttp", "socket"):
         assert forbidden not in source, forbidden
+
+
+def test_the_drafter_does_not_import_the_sender() -> None:
+    """One direction only.
+
+    `contact.py` must not reach `email.py`, or a future edit to the drafter could
+    acquire the ability to send and the token check would become optional. The
+    other direction is deliberate: the route imports both.
+    """
+    from app.services import contact
+
+    assert "services.email" not in inspect.getsource(contact)
 
 
 def test_email_service_is_not_imported_by_any_tool() -> None:
@@ -159,13 +208,31 @@ def test_the_draft_tool_result_has_no_token() -> None:
     """
     from app.tools.integrations import draft_message
 
+    # The returned dict does carry `approval_token` — that is how it reaches the
+    # browser. The property is that the chat loop strips it before the model sees
+    # the same dict, which `test_the_chat_loop_strips_the_token_before_the_model`
+    # checks. Asserting the key is absent here would be asserting the feature is
+    # broken.
     source = inspect.getsource(draft_message)
 
-    # It may create the draft (which has the token) but must not put the token in
-    # the returned dict.
-    returned = source.split("return {", 1)[-1]
-    assert "approval_token" not in returned
-    assert ".token" not in returned
+    assert "approval_token" in source, "the token must reach the tool result"
+
+    # The prose the model reads must not mention it, and that is checked by
+    # calling the function rather than by reading the source.
+    from datetime import UTC, datetime, timedelta
+
+    from app.services.contact import Draft
+
+    draft = Draft(
+        id=1,
+        name="Ada",
+        email="ada@example.com",
+        body="Hi",
+        created_at=datetime.now(UTC),
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+        token="THE-SEND-KEY",
+    )
+    assert "THE-SEND-KEY" not in contact_service.confirmation_for_model(draft)
 
 
 def test_the_chat_loop_strips_the_token_before_the_model() -> None:
@@ -204,10 +271,16 @@ def test_ip_hashing_is_configured() -> None:
 
 
 def test_the_status_enum_covers_everything_the_route_writes() -> None:
-    """`failed` exists because a Resend error must be recorded, not retried blind."""
+    """`sending` and `failed` exist because of what happens around the send.
+
+    `sending` is the state a row sits in between the atomic claim and the
+    provider call, so a crash there leaves a traceable state rather than a row
+    that looks forever pending. `failed` exists because a Resend error must be
+    recorded, not retried blind.
+    """
     from app.db.models import MESSAGE_STATUSES
 
-    assert set(MESSAGE_STATUSES) == {"pending", "sent", "expired", "failed"}
+    assert set(MESSAGE_STATUSES) == {"pending", "sending", "sent", "expired", "failed"}
 
 
 def test_the_daily_cap_is_below_resends_free_tier() -> None:
