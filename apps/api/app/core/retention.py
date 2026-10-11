@@ -4,7 +4,7 @@
 
 Render free has no scheduled jobs, Neon's free tier has no cron extension
 enabled, and GitHub Actions disables scheduled workflows on public repositories
-after 60 days of repository inactivity â€” so a keep-alive cron that silently stops
+after 60 days of repository inactivity — so a keep-alive cron that silently stops
 is worse than no cron, because it looks identical to a working one.
 
 Two triggers remain, both free:
@@ -19,7 +19,7 @@ Two triggers remain, both free:
 The honest consequence, recorded rather than papered over: **when a site has no
 traffic, nothing sweeps.** Stale drafts persist until the next visitor. They are
 inert rows holding a salted digest rather than a readable address, so the risk is
-bounded â€” but this is retention-by-laziness, not retention-by-policy.
+bounded — but this is retention-by-laziness, not retention-by-policy.
 
 `uv run python -m app.core.retention` is the manual escape hatch, and a Neon cron
 or an authenticated external sweep endpoint would close the gap properly.
@@ -189,7 +189,7 @@ async def sweep_on_boot(settings: Settings) -> None:
     stale rows.
 
     **Does not manage the pool.** The caller (`app.main`'s lifespan) has already
-    built the engine, and this used to call `pool.teardown()` on its way out â€”
+    built the engine, and this used to call `pool.teardown()` on its way out —
     which disposed the live pool, so the first real request after boot found no
     session factory. Every caller here already has a working pool; this function
     only borrows it.

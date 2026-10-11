@@ -1,4 +1,4 @@
-"""POST /messages/{id}/send Ã¢â‚¬â€ the route that actually sends mail.
+"""POST /messages/{id}/send — the route that actually sends mail.
 
 THIS IS A RED TEST FILE. It is written before `app/api/messages.py` and fails
 with ImportError until that module exists. The properties below are the ones
@@ -40,8 +40,8 @@ from tests.helpers import clear_test_drafts, ensure_pool, teardown_pool
 SALT = "a-sufficiently-long-test-salt"
 
 # Globally routable, not the RFC 5737 documentation range. `client_ip` refuses a
-# forwarded header claiming a non-global address â€” correctly, since no real
-# visitor is on one â€” so a documentation IP here would exercise the forged-header
+# forwarded header claiming a non-global address — correctly, since no real
+# visitor is on one — so a documentation IP here would exercise the forged-header
 # path instead of the real one. `test_client_ip.py` pins that refusal separately.
 IP = "45.33.32.42"
 OTHER_IP = "8.8.8.8"
@@ -55,7 +55,7 @@ async def client():
 
     `TestClient` runs the app's lifespan on a separate thread with its own event
     loop, so pooled connections created there are bound to a loop the test body
-    is not running on Ã¢â‚¬â€ and every request fails with "attached to a different
+    is not running on — and every request fails with "attached to a different
     loop". `ASGITransport` has no second loop, so the engine, the requests and
     the assertions all share one.
 
@@ -551,7 +551,7 @@ async def test_the_ip_hash_is_cleared_on_send(client) -> None:
 
 async def test_sending_does_not_delete_the_row(client) -> None:
     """Retention is a separate job. Clearing the hash is not deleting evidence
-    that a message was sent Ã¢â‚¬â€ that matters if a visitor disputes it."""
+    that a message was sent — that matters if a visitor disputes it."""
     from sqlalchemy import text
 
     from app.db import pool

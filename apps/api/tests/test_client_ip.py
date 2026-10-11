@@ -8,7 +8,7 @@ security properties are written down before the code that has to satisfy them.
 
 `X-Forwarded-For` is set by whatever proxy sat in front of the app. Anyone can
 send that header. Trusting it unconditionally means any visitor can claim any IP
-address, which defeats the second factor of the send route's approval check â€” and
+address, which defeats the second factor of the send route's approval check — and
 it fails silently, because everything still appears to work.
 
 So: the header is honoured only when the *connection itself* arrived from a
@@ -26,7 +26,7 @@ the check, and there is no way to keep both "stable" and "exact". That case is
 covered by `test_ipv6_normalises_to_64` and handled with a friendly message
 rather than a bare 403.
 
-`ipaddress.ip_network(..., strict=False)` is required â€” a full address is not on
+`ipaddress.ip_network(..., strict=False)` is required — a full address is not on
 a /64 boundary and raises without it.
 """
 
@@ -53,7 +53,7 @@ STRANGER = "45.33.32.200"
 #
 # Not the RFC 5737 documentation ranges (203.0.113.x, 198.51.100.x). Python's
 # `ipaddress` correctly reports those as non-global, and the implementation
-# refuses any forwarded header claiming a non-global address â€” so a test using
+# refuses any forwarded header claiming a non-global address — so a test using
 # them would be asserting against a case that cannot occur in production. The
 # refusal is covered separately by
 # `test_documentation_ranges_are_refused_from_the_header`.
