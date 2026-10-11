@@ -46,8 +46,17 @@ Thumbs.db
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
 
-#Skills
-*.agents
+# Skills are tracked. The pattern here was `*.agents`, which matches the .agents
+# DIRECTORY itself, not a file extension -- it silently untracked four of the
+# eleven skills in .agents/skills, including all three gemini-* skills that
+# AGENTS.md requires to be loaded before touching app/services/llm.py.
+#
+# A fresh clone therefore had 7 skills instead of 11 and the agent could not
+# have followed a rule that referred to content it could not read.
+.agents/
+!.agents/
+!.agents/skills/
+!.agents/skills/**
 # corpus PDFs: convert to markdown with ingest/from_pdf.py, commit only the markdown
 corpus/_source/
 
