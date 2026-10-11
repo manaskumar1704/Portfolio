@@ -11,6 +11,61 @@ import pytest
 
 from app.core.config import Settings
 
+# Every variable Settings reads. Cleared for the whole module.
+#
+# This test file asserts things about CONFIGURATION, so it must not be able to see
+# the developer's own .env. It previously could, and the consequence was a test
+# that passed on one machine and failed in CI.
+#
+# Two separate mechanisms, because they do different jobs:
+#
+#   monkeypatch.delenv  removes the process environment. `uv run pytest` inherits
+#                       whatever the shell exported, and a DATABASE_URL exported
+#                       in a shell profile reaches the test the same way a .env
+#                       reaches it.
+#   _env_file=None      stops pydantic-settings reading the .env file on disk.
+#
+# Setting only _env_file=None leaves the process environment intact, which is why
+# the first attempt at this fix was not enough.
+ENV_VARS = (
+    "DATABASE_URL",
+    "SYNC_DATABASE_URL",
+    "GEMINI_API_KEY",
+    "GROQ_API_KEY",
+    "CORS_ORIGINS",
+    "IP_HASH_SALT",
+    "RESEND_API_KEY",
+    "CONTACT_NOTIFY_EMAIL",
+    "RESEND_FROM",
+    "TRUSTED_PROXY_CIDRS",
+    "GITHUB_TOKEN",
+    "GITHUB_OWNER",
+    "GITHUB_PINS",
+    "APP_ENV",
+    "EMBEDDING_MODEL",
+    "EMBEDDING_DIMENSIONS",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_from_ambient_config(monkeypatch):
+    """No test in this file may depend on the machine it runs on."""
+    for name in ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr("app.core.config.Settings.__init__", _with_no_env_file(monkeypatch))
+    yield
+
+
+def _with_no_env_file(monkeypatch):
+    """Return a Settings subclass that never reads a .env file."""
+    original = Settings.__init__
+
+    def patched(self, **kwargs):
+        kwargs.setdefault("_env_file", None)
+        return original(self, **kwargs)
+
+    return patched
+
 
 def production(**overrides) -> Settings:
     """A configuration that passes everything, so each test can break one thing."""
@@ -47,10 +102,62 @@ def test_the_mode_switch_is_case_and_space_insensitive() -> None:
 
 
 def test_a_local_configuration_is_never_problematic() -> None:
-    """No database, no keys, no CORS — all normal locally."""
+    """No database, no keys, no CORS — all normal locally.
+
+    The first version of this test passed in CI for the wrong reason, and failed
+    for the right one. It is kept because it pins the fix: `production_problems`
+    must be empty when `APP_ENV` is not `production`, whatever the environment.
+    """
     settings = Settings(app_env="local")
 
     assert settings.production_problems() == []
+
+
+def test_production_problems_ignores_app_env_case_and_padding() -> None:
+    """ "Production", "PRODUCTION" and " production " all mean production.
+
+    A stray space in a Render environment variable would otherwise silently
+    disable every boot check, which is the exact failure the checks exist to
+    prevent.
+    """
+    for value in ("production", "PRODUCTION", " Production "):
+        settings = Settings(app_env=value, database_url="")
+        assert settings.production_problems(), value
+
+
+def test_production_still_reports_every_problem() -> None:
+    """The positive case the fix must not have broken.
+
+    Gating on `is_production` could have been done by making the method always
+    return an empty list, or by returning early before any check runs. Both would
+    satisfy the test above. This one cannot be satisfied by either.
+    """
+    settings = production()
+
+    assert settings.is_production is True
+    assert settings.production_problems() == []
+
+
+def test_production_reports_each_missing_variable_when_app_env_is_production() -> None:
+    """One absent variable, named, with an explicit `app_env`.
+
+    `production()` supplies everything else, so breaking one field yields exactly
+    one problem. Asserted with no .env in scope and no ambient environment, so
+    the result cannot come from the machine it runs on.
+    """
+    settings = production(database_url="", app_env="production")
+
+    problems = settings.production_problems()
+
+    assert len(problems) == 1, problems
+    assert "DATABASE_URL" in problems[0]
+
+
+def test_a_completely_empty_production_config_reports_five_problems() -> None:
+    """The count, so a silently-dropped check fails here rather than nowhere."""
+    settings = Settings(app_env="production")
+
+    assert len(settings.production_problems()) == 5
 
 
 # --- Fails: the silent absences ---------------------------------------------

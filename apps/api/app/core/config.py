@@ -252,6 +252,17 @@ class Settings(BaseSettings):
         Returns a list rather than raising, so the caller decides: the lifespan
         fails on a non-empty result, the preflight script prints it.
 
+        **Empty unless `APP_ENV=production`.** These are production rules, so
+        asking them of a local checkout has no answer. `main.py` already guards
+        on `is_production`, but a method named `production_problems` that reports
+        problems for a local machine is a trap for the next caller — and the trap
+        had a test on it. `test_a_local_configuration_is_never_problematic`
+        asserted an empty list and passed only because the developer's .env
+        supplied every value it checked for. In a clean checkout, including CI,
+        it failed, and `autoDeployTrigger: checksPass` turns a red test into a
+        blocked deploy. The test meant to prove the local path was safe was the
+        thing stopping deployments.
+
         **Fail and warn are not uniform, and the asymmetry is deliberate.**
 
         Fails — the absences that are silent. A missing `DATABASE_URL` boots an
@@ -267,6 +278,9 @@ class Settings(BaseSettings):
         which is the right direction to fail: nobody can forge an IP, and drafts
         are abandoned rather than mis-sent.
         """
+        if not self.is_production:
+            return []
+
         problems: list[str] = []
 
         if not self.database_url:
