@@ -62,6 +62,102 @@ async def test_answers_without_calling_a_tool() -> None:
     assert events[0].data["text"] == "He ships RAG systems."
 
 
+async def test_done_reports_unverified_with_no_verifier_wired(monkeypatch) -> None:
+    """The badge contract's default: honest False, even when citations exist.
+
+    `false` here is not "the check failed today" — it is "nothing is wired".
+    Manufacturing True without a verifier is the lie the field exists to
+    prevent, so the default is pinned before anyone wires anything.
+    """
+    from app.services import verify
+
+    monkeypatch.setattr(verify, "_VERIFIER", None)
+
+    client = ScriptedClient(
+        [
+            TurnResult(
+                tool_calls=[ToolCall(id="c1", name="echo", arguments={"text": "x"})],
+                interaction_id="int-1",
+            ),
+            TurnResult(text="ok", interaction_id="int-2"),
+        ]
+    )
+
+    events = await collect(client, "cite something")
+
+    assert events[-1].data["sources_verified"] is False
+
+
+async def test_done_reports_the_verifier_verdict_when_one_is_wired(monkeypatch) -> None:
+    """The wire point works from one assignment, and its verdict is the field."""
+    from app.services import verify
+    from app.services.verify import SourceVerdict
+    from app.tools import registry
+
+    class Agreeing:
+        async def verify(self, answer: str, sources: Sequence[str]) -> SourceVerdict:
+            assert answer == "He said hi."
+            assert sources == ["resume.md"]
+            return SourceVerdict(True, "stub", "agreed")
+
+    monkeypatch.setattr(verify, "_VERIFIER", Agreeing())
+
+    spec, _, args_model = registry._REGISTRY["echo"]
+    monkeypatch.setitem(
+        registry._REGISTRY,
+        "echo",
+        (spec, lambda text: {"echoed": text, "sources": ["resume.md"]}, args_model),
+    )
+
+    client = ScriptedClient(
+        [
+            TurnResult(
+                tool_calls=[ToolCall(id="c1", name="echo", arguments={"text": "hi"})],
+                interaction_id="int-1",
+            ),
+            TurnResult(text="He said hi.", interaction_id="int-2"),
+        ]
+    )
+
+    events = await collect(client, "was that grounded?")
+
+    assert events[-1].data["sources_verified"] is True
+
+
+async def test_a_wired_verifier_that_refuses_reports_false(monkeypatch) -> None:
+    """A wired verifier saying no must not be promoted to yes anywhere."""
+    from app.services import verify
+    from app.services.verify import SourceVerdict
+    from app.tools import registry
+
+    class Refusing:
+        async def verify(self, answer: str, sources: Sequence[str]) -> SourceVerdict:
+            return SourceVerdict(False, "stub", "path not in corpus")
+
+    monkeypatch.setattr(verify, "_VERIFIER", Refusing())
+
+    spec, _, args_model = registry._REGISTRY["echo"]
+    monkeypatch.setitem(
+        registry._REGISTRY,
+        "echo",
+        (spec, lambda text: {"echoed": text, "sources": ["resume.md"]}, args_model),
+    )
+
+    client = ScriptedClient(
+        [
+            TurnResult(
+                tool_calls=[ToolCall(id="c1", name="echo", arguments={"text": "hi"})],
+                interaction_id="int-1",
+            ),
+            TurnResult(text="He made this up.", interaction_id="int-2"),
+        ]
+    )
+
+    events = await collect(client, "prove it")
+
+    assert events[-1].data["sources_verified"] is False
+
+
 async def test_runs_a_tool_then_answers() -> None:
     """The whole point: model calls a tool, the answer comes back informed."""
     client = ScriptedClient(

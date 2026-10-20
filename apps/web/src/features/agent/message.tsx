@@ -41,6 +41,21 @@ export function Message({ message }: { message: ChatMessage }) {
         {message.citations && message.citations.length > 0 && (
           <Citations citations={message.citations} />
         )}
+
+        {/*
+          The verification badge. This release never renders it: no verifier is
+          wired (services/verify.py), so `sourcesVerified` is always false, and
+          a badge nobody earned is a lie. The branch is the contract — the day a
+          verifier flips the field, this is where the visitor sees it.
+        */}
+        {message.sourcesVerified === true && (
+          <div className="my-2 flex items-center gap-1.5 text-[0.86em] text-ok">
+            <span aria-hidden="true" className="w-[1.1em] text-center">
+              ✔
+            </span>
+            sources verified
+          </div>
+        )}
       </div>
     </div>
   );

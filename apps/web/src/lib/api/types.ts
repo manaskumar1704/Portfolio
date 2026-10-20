@@ -26,6 +26,12 @@ export type ChatMessage = {
   thinking?: boolean;
   /** Sources this answer is grounded in, in the order they were first cited. */
   citations?: Citation[];
+  /**
+   * Whether this turn's answer was actually verified. Absent on every message
+   * that has not finished, and false is the honest value for this release: no
+   * verifier is wired, so the badge stays dark. Renders only on true.
+   */
+  sourcesVerified?: boolean;
 };
 
 /** A retrieved corpus chunk an answer is grounded in. */
@@ -66,7 +72,18 @@ export type ChatEvent =
     }
   | { kind: "busy"; retryAfterSeconds: number; message: string }
   | { kind: "error"; message: string }
-  | { kind: "done"; sources: string[]; textLength: number }
+  | {
+      kind: "done";
+      sources: string[];
+      textLength: number;
+      /**
+       * The badge's contract field. `false` is meaningful, not absent: it says
+       * nothing earned verification this turn, which is the honest value until
+       * a verifier is wired (services/verify.py). The badge renders only on
+       * true.
+       */
+      sourcesVerified: boolean;
+    }
   | { kind: "unknown"; name: string; data: unknown };
 
 /** A drafted message awaiting the visitor's approval. */

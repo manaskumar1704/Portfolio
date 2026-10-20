@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.logging import get_logger
+from app.services import verify as source_verify
 from app.services.llm import MAX_TOOL_ITERATIONS, ChatMessage, LLMClient, ToolResult
 from app.tools import registry
 
@@ -203,7 +204,25 @@ async def run_chat_turn(
                             "citation", {"source_path": path, "label": path.rsplit("/", 1)[-1]}
                         )
 
-    yield StreamEvent("done", {"sources": sources, "text_length": len(text_so_far)})
+    # The badge contract: an honest field, not an optimistic one. With no
+    # verifier configured — this release — the value stays False even when
+    # citations exist; an "verified" nobody checked is the lie this field exists
+    # to prevent. A verifier that raises inside verify() is contractually
+    # required to fail closed instead (see services/verify.py).
+    sources_verified = False
+    verifier = source_verify.configured_verifier()
+    if verifier is not None and sources:
+        verdict = await verifier.verify(text_so_far, sources)
+        sources_verified = verdict.verified
+
+    yield StreamEvent(
+        "done",
+        {
+            "sources": sources,
+            "text_length": len(text_so_far),
+            "sources_verified": sources_verified,
+        },
+    )
 
 
 def summarise_for_log(events: list[StreamEvent]) -> str:

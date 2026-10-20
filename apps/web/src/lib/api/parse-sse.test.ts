@@ -291,6 +291,27 @@ describe("the real event set", () => {
     expect(draft.id).toBe(12);
   });
 
+  test("done carries sourcesVerified, and only the literal true verifies", () => {
+    // The badge's contract field. The backend's no-verifier value is `false`,
+    // and anything the backend declines to send must decode the same way —
+    // `undefined` reading as verified would light the badge for everyone.
+    const decode = (payload: string) =>
+      parseSseFrames(payload).events[0] as Extract<ChatEvent, { kind: "done" }>;
+
+    expect(
+      decode(
+        frame("done", { sources: ["resume.md"], text_length: 9, sources_verified: true }),
+      ).sourcesVerified,
+    ).toBe(true);
+
+    expect(
+      decode(frame("done", { sources: [], text_length: 0, sources_verified: false }))
+        .sourcesVerified,
+    ).toBe(false);
+
+    expect(decode(frame("done", { sources: [], text_length: 0 })).sourcesVerified).toBe(false);
+  });
+
   test("camelCases the server's snake_case keys", () => {
     // The wire format is snake_case; TypeScript is camelCase. Doing that here
     // means the rest of the frontend never has to know which is which.

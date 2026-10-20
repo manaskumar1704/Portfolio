@@ -147,3 +147,37 @@ def test_the_draft_event_carries_the_approval_token() -> None:
 
     assert "approvalToken" in draft, "the draft event lost its approval token"
     assert "approval_token" not in draft, "the frontend must use the camelCase spelling"
+
+
+# `done` is the only multi-field event both emitters build by hand, and fields
+# arrive or disappear by editing a dict literal, not by renaming a key. So the
+# name-level check above is not enough for it: pin the exact field set.
+DONE_FIELDS = {"sources", "text_length", "sources_verified"}
+
+
+def test_every_done_emission_carries_the_full_field_set() -> None:
+    """Both emitters, pinned to the same dict shape.
+
+    The fallback exists for the request that dies mid-stream; if it drifted from
+    the service's shape, an interrupted answer would decode differently from a
+    complete one and only in that case. `[^}]*?` holds because neither emission
+    has a nested brace.
+    """
+    for path in EMITTERS:
+        match = re.search(
+            r'StreamEvent\(\s*"done",\s*\{([^}]*?)\}\s*,?\s*\)',
+            path.read_text(encoding="utf-8"),
+        )
+        assert match is not None, f"no done emission found in {path}"
+        keys = set(re.findall(r'"(\w+)":', match.group(1)))
+        assert keys == DONE_FIELDS, f"{path.name} emits {sorted(keys)}"
+
+
+def test_the_frontend_declares_sources_verified_as_a_boolean() -> None:
+    """The badge's contract field: declared once, spelled camelCase, bool."""
+    text = TYPES_TS.read_text(encoding="utf-8")
+    done = text[text.index('kind: "done"') : text.index("\n  |", text.index('kind: "done"'))]
+
+    assert "sourcesVerified" in done
+    assert "sources_verified" not in done, "the frontend must use the camelCase spelling"
+    assert "boolean" in done

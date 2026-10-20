@@ -172,6 +172,8 @@ function mapKnown(kind: string, d: Record<string, unknown>): ChatEvent {
         kind: "done",
         sources: Array.isArray(d.sources) ? d.sources.map(String) : [],
         textLength: num(d.text_length),
+        // Strictly true: `undefined` must never read as verified.
+        sourcesVerified: d.sources_verified === true,
       };
   }
 }

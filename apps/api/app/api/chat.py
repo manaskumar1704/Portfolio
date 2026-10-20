@@ -145,7 +145,12 @@ async def _frames(events: AsyncIterator[StreamEvent]) -> AsyncIterator[str]:
         yield _frame(StreamEvent("error", {"message": "Something went wrong. Try again."}))
     finally:
         if not sent_done:
-            yield _frame(StreamEvent("done", {"sources": [], "text_length": 0}))
+            yield _frame(
+                StreamEvent(
+                    "done",
+                    {"sources": [], "text_length": 0, "sources_verified": False},
+                )
+            )
 
 
 def _settings():

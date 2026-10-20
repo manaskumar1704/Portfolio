@@ -156,7 +156,7 @@ export function useAgent() {
 
       case "done":
         setStatus("done");
-        update(botId, { thinking: false });
+        update(botId, { thinking: false, sourcesVerified: event.sourcesVerified });
         break;
 
       // `tool_call` is deliberately silent. A "searching…" line on every
