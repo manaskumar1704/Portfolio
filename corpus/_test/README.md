@@ -12,9 +12,14 @@ not be.
 ## Using them
 
 ```bash
-uv run python -m ingest.run --dir ../../corpus/_test
+uv run python -m ingest.fixtures
 uv run pytest -m integration tests/test_rag.py
 ```
+
+`ingest/run.py --dir` refuses this directory on purpose (see its guard): the
+fixture loader in `ingest/fixtures.py` is the supported path. It takes no
+directory argument — it appends `_test` to `CORPUS_DIR` — so the mistake that
+puts fiction into a real corpus is not expressible.
 
 ## Pointing at the real corpus
 

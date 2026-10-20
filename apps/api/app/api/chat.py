@@ -27,7 +27,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from app.core.client_ip import client_ip as resolve_client_ip
+from app.core.client_ip import client_ip as resolve_client_ip, current_client_ip
 from app.core.logging import get_logger
 from app.core.ratelimit import RateLimiter
 from app.core.retention import maybe_sweep
@@ -68,6 +68,11 @@ async def chat(request: Request, body: ChatRequest) -> StreamingResponse:
         request.headers.get("x-forwarded-for"),
         _settings(),
     )
+    # ContextVar, not a tool argument: the resolved address travels out of the
+    # model's view, so a prompt cannot forge the IP a draft binds to. The body
+    # generator runs in the request task and inherits this assignment — the
+    # same property the `request_id` ContextVar relies on for its log lines.
+    current_client_ip.set(client_ip)
     allowed, retry_after = _limiter.check(client_ip)
     if not allowed:
         log.info("rate limited %s", client_ip)
@@ -140,7 +145,7 @@ async def _frames(events: AsyncIterator[StreamEvent]) -> AsyncIterator[str]:
         yield _frame(StreamEvent("error", {"message": "Something went wrong. Try again."}))
     finally:
         if not sent_done:
-            yield _frame(StreamEvent("done", {"sources": []}))
+            yield _frame(StreamEvent("done", {"sources": [], "text_length": 0}))
 
 
 def _settings():

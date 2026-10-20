@@ -4,7 +4,7 @@ A batch job, not a request handler. Run it from the command line:
 
 ```bash
 uv run python -m ingest.run                  # real corpus
-uv run python -m ingest.run --dir corpus/_test   # fixtures
+uv run python -m ingest.fixtures             # fixtures (corpus/_test), by design
 ```
 
 ## Why re-running is safe

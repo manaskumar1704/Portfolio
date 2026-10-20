@@ -146,14 +146,17 @@ def _sanitise_name(value: str) -> str:
     return re.sub(r"[\r\n\t]", " ", value).strip()
 
 
-async def draft_message(name: str, email: str, body: str, origin_ip: str = "") -> dict:
+async def draft_message(name: str, email: str, body: str) -> dict:
     """Save a draft. Does not send, and cannot.
 
-    `origin_ip` is threaded in from the request rather than read from a global,
-    so the MCP server in phase 7 can pass its own value and tests can pin it.
+    The visitor's address is not an argument: it arrives through the request
+    context (`current_client_ip` in `app.core.client_ip`), which the handler
+    cannot influence. `phase 7`'s MCP server gets the same binding by running
+    under a request that sets the variable, not by threading a parameter that a
+    prompt could control.
     """
     try:
-        draft = await contact_service.create_draft(_sanitise_name(name), email, body, origin_ip)
+        draft = await contact_service.create_draft(_sanitise_name(name), email, body)
     except contact_service.DraftError as exc:
         # The message is already written for a human, so it can go to the model
         # to relay verbatim.

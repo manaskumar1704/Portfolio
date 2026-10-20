@@ -51,6 +51,8 @@ from email.utils import parseaddr
 
 from sqlalchemy import text
 
+from app.core.client_ip import current_client_ip, hash_from_settings
+from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.db import pool
 
@@ -151,9 +153,24 @@ def validate_draft(name: str, email: str, body: str) -> tuple[str, str, str]:
     return name, address, body
 
 
-async def create_draft(name: str, email: str, body: str, origin_ip: str) -> Draft:
-    """Write a `pending` row. Returns the draft with its plaintext token."""
+async def create_draft(name: str, email: str, body: str) -> Draft:
+    """Write a `pending` row. Returns the draft with its plaintext token.
+
+    The visitor's address reaches this through the request context
+    (`current_client_ip`, set by the HTTP layer), never as a tool argument — the
+    registry passes handlers nothing but model arguments, so an IP parameter
+    would be whatever the model typed. The row is bound to a salted hash of that
+    address, the same digest the send route compares (`_ip_matches`); the
+    plaintext address is not stored, because nothing reads it.
+    """
     name, address, body = validate_draft(name, email, body)
+
+    ip_hash = hash_from_settings(current_client_ip.get(), get_settings())
+    if ip_hash is None:
+        # Fail closed. `_ip_matches` evaluates `NULL = anything` as false, so an
+        # unbound row is a message the visitor can never approve — better that
+        # it is never created.
+        raise DraftError("The message could not be recorded just now. Please try again.")
 
     token = generate_token()
     token_hash = hash_token(token)
@@ -164,8 +181,8 @@ async def create_draft(name: str, email: str, body: str, origin_ip: str) -> Draf
                 text(
                     """
                     INSERT INTO messages (name, email, body, status,
-                                          approval_token_hash, origin_ip, expires_at)
-                    VALUES (:name, :email, :body, 'pending', :token_hash, :ip, :expires)
+                                          approval_token_hash, ip_hash, expires_at)
+                    VALUES (:name, :email, :body, 'pending', :token_hash, :ip_hash, :expires)
                     RETURNING id, created_at, expires_at
                     """
                 ),
@@ -174,7 +191,7 @@ async def create_draft(name: str, email: str, body: str, origin_ip: str) -> Draf
                     "email": address,
                     "body": body,
                     "token_hash": token_hash,
-                    "ip": (origin_ip or "unknown")[:45],
+                    "ip_hash": ip_hash,
                     "expires": datetime.now(UTC) + DRAFT_TTL,
                 },
             )

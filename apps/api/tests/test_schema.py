@@ -132,19 +132,36 @@ async def test_message_defaults_to_pending(ready_db) -> None:
         await session.execute(text("DELETE FROM messages WHERE id = :v"), {"v": row.id})
 
 
-async def test_message_requires_an_origin_ip(ready_db) -> None:
-    """The IP binding is what stops a stranger confirming someone else's draft."""
-    with pytest.raises(IntegrityError):
-        async with ready_db.session_scope() as session:
+async def test_message_does_not_require_a_plaintext_address(ready_db) -> None:
+    """The binding is the salted `ip_hash`, not a stored address.
+
+    `origin_ip` was relaxed to nullable by c3d4e5f6a7b8: the send route compares
+    digests (`_ip_matches` on `ip_hash`), so the plaintext form is never read.
+    A row the service created has no plaintext address at all — asserted from
+    the schema side as "a pending row can exist without one".
+    """
+    async with ready_db.session_scope() as session:
+        row = (
             await session.execute(
                 text(
                     """
-                    INSERT INTO messages (name, email, body, approval_token_hash, expires_at)
-                    VALUES ('a', 'a@example.com', 'hi', :h, now() + interval '1 hour')
+                    INSERT INTO messages (name, email, body, status, approval_token_hash,
+                                          expires_at)
+                    VALUES ('a', 'a@example.com', 'hi', 'pending', :h,
+                            now() + interval '1 hour')
+                    RETURNING id, status, origin_ip, ip_hash
                     """
                 ),
                 {"h": "0" * 64},
             )
+        ).fetchone()
+
+    assert row.status == "pending"
+    assert row.origin_ip is None
+    assert row.ip_hash is None  # the schema's legacy shape; the service never writes it
+
+    async with ready_db.session_scope() as session:
+        await session.execute(text("DELETE FROM messages WHERE id = :v"), {"v": row.id})
 
 
 async def test_message_requires_an_expiry(ready_db) -> None:

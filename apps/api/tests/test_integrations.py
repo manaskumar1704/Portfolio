@@ -175,7 +175,7 @@ async def test_an_invalid_email_is_reported_not_raised(monkeypatch) -> None:
 
     monkeypatch.setattr(contact_service, "create_draft", no_db)
 
-    result = await draft_message("Ada", "not-an-email", "Hi", "1.1.1.1")
+    result = await draft_message("Ada", "not-an-email", "Hi")
 
     assert "valid email" in result["error"]
 
@@ -186,13 +186,13 @@ async def test_a_name_with_newlines_is_flattened(monkeypatch) -> None:
 
     from app.services import contact as contact_service
 
-    async def capture(name, email, body, ip):
+    async def capture(name, email, body):
         seen["name"] = name
         raise contact_service.DraftError("stop here")
 
     monkeypatch.setattr(contact_service, "create_draft", capture)
 
-    await draft_message("Ada\r\nBcc: victim@example.com", "ada@example.com", "Hi", "1.1.1.1")
+    await draft_message("Ada\r\nBcc: victim@example.com", "ada@example.com", "Hi")
 
     assert "\n" not in seen["name"]
     assert "\r" not in seen["name"]
@@ -230,7 +230,7 @@ async def test_the_draft_tool_separates_the_token_from_the_prose(monkeypatch) ->
 
     monkeypatch.setattr(contact_service, "create_draft", make)
 
-    result = await draft_message("Ada", "ada@example.com", "Hi", "1.1.1.1")
+    result = await draft_message("Ada", "ada@example.com", "Hi")
 
     assert result["status"] == "pending"
     assert result["sent"] is False

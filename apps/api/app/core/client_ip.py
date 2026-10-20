@@ -58,12 +58,25 @@ drafts are abandoned, never sent by someone else.
 
 import hashlib
 import ipaddress
+from contextvars import ContextVar
 from typing import Any
 
 from app.core.config import Settings
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
+
+# The resolved visitor address for the current request, set by the HTTP layer
+# (the chat route and, later, the draft routes) right after `client_ip` returns.
+#
+# It is a ContextVar rather than a tool argument or a module global for the
+# same two reasons. Not a tool argument: the registry passes handlers nothing but
+# model arguments, so an IP parameter would be whatever the model typed — a
+# forged binding. Not a module global: concurrent requests would overwrite each
+# other and a draft could be bound to the previous visitor's address. A
+# ContextVar snapshots per task, is invisible to the model, and cannot be set
+# by anything except our own request handlers.
+current_client_ip: ContextVar[str] = ContextVar("current_client_ip", default="")
 
 # IPv4 is a single host address; IPv6's meaningful unit for identifying a
 # subscriber is the /64, not the full 128 bits.
