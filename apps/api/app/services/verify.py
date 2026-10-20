@@ -93,16 +93,12 @@ class CorpusPathVerifier:
 
         try:
             async with pool.session_scope() as session:
-                rows = (
-                    await session.execute(text(_PATH_SQL), {"paths": list(sources)})
-                ).fetchall()
+                rows = (await session.execute(text(_PATH_SQL), {"paths": list(sources)})).fetchall()
         except Exception:
             # A verifier that raises breaks the answer the visitor is watching;
             # the contract is results, and the safe result is "not verified".
             log.exception("corpus path verification query failed")
-            return SourceVerdict(
-                False, "corpus_path", "the verification query failed"
-            )
+            return SourceVerdict(False, "corpus_path", "the verification query failed")
 
         known = {row.source_path for row in rows}
         unknown = sorted(set(sources) - known)
@@ -113,6 +109,4 @@ class CorpusPathVerifier:
                 f"cited {len(unknown)} path(s) not in the corpus, first: {unknown[0]}",
             )
 
-        return SourceVerdict(
-            True, "corpus_path", "every cited path resolves to an ingested chunk"
-        )
+        return SourceVerdict(True, "corpus_path", "every cited path resolves to an ingested chunk")

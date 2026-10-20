@@ -103,9 +103,7 @@ def shape_verdict(
     if not isinstance(supported, bool):
         # The malformed-JSON case: the service answered, but its answer means
         # nothing. Never guess whether "certain" counts as a yes.
-        return GroundingVerdict(
-            False, provider, "the grounding service sent a malformed reply"
-        )
+        return GroundingVerdict(False, provider, "the grounding service sent a malformed reply")
 
     note = payload.get("note")
     if not isinstance(note, str) or not note.strip():
@@ -114,17 +112,13 @@ def shape_verdict(
     return GroundingVerdict(supported, provider, _clip(note, NOTE_MAX_CHARS))
 
 
-def shape_hits(
-    source: str, payload: Any = None, failure: str | None = None
-) -> ThirdBrainReply:
+def shape_hits(source: str, payload: Any = None, failure: str | None = None) -> ThirdBrainReply:
     """One provider response → a reply; a failure is an empty list with a reason."""
     if failure is not None:
         return ThirdBrainReply((), _clip(failure, NOTE_MAX_CHARS))
 
     if not isinstance(payload, list):
-        return ThirdBrainReply(
-            (), "the notes service did not send a usable reply"
-        )
+        return ThirdBrainReply((), "the notes service did not send a usable reply")
 
     entries = payload[:HIT_COUNT_MAX]
     for entry in entries:
@@ -152,9 +146,7 @@ class JobFinderConnector(Protocol):
     else in the codebase depends on this yet — that is what "idle" means.
     """
 
-    async def verify_grounding(
-        self, answer: str, snippets: Sequence[str]
-    ) -> GroundingVerdict:
+    async def verify_grounding(self, answer: str, snippets: Sequence[str]) -> GroundingVerdict:
         """Whether `snippets` support `answer`, in the provider's own judgement."""
 
 
@@ -191,9 +183,7 @@ _THIRDBRAIN_FIXTURE: list[dict[str, Any]] = [
 class FixtureJobFinder:
     """The offline stand-in until the JobFinder API has a contract."""
 
-    async def verify_grounding(
-        self, answer: str, snippets: Sequence[str]
-    ) -> GroundingVerdict:
+    async def verify_grounding(self, answer: str, snippets: Sequence[str]) -> GroundingVerdict:
         return shape_verdict("jobfinder", dict(_JOBFINDER_FIXTURE))
 
 

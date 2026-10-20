@@ -100,8 +100,8 @@ class Settings(BaseSettings):
     resend_from: str = "onboarding@resend.dev"
 
     # Phase 6. Public endpoint limits.
-    rate_limit_per_minute: int = 10
-    rate_limit_burst: int = 10
+    rate_limit_per_minute: int = 15
+    rate_limit_burst: int = 15
     approve_limit_per_hour: int = 3
 
     # The global daily send ceiling. Resend's free tier allows 100/day; this sits
@@ -112,6 +112,11 @@ class Settings(BaseSettings):
     # resets on every Render spin-down: ten sends before a sleep and ten after
     # would be twenty.
     daily_send_cap: int = 70
+
+    # The per-connection send cap (ADR 0011): two sends per IP per UTC day, for
+    # the connection that drafted them. Same counter-in-the-database reasoning
+    # as above.
+    ip_daily_send_cap: int = 2
 
     # Retention. Unsent drafts are deleted after this; sent rows keep only their
     # body for long enough to be noticed, and their IP hash is cleared on send.
@@ -150,7 +155,8 @@ class Settings(BaseSettings):
         return value
 
     @property
-    def tracing_enabled(self) -> bool:
+    def langfuse_enabled(self) -> bool:
+        """Tracing runs only when both keys are present (ADR 0010)."""
         return bool(self.langfuse_public_key and self.langfuse_secret_key)
 
     @property

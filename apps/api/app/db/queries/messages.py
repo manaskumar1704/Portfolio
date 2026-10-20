@@ -216,6 +216,47 @@ async def release_daily_send() -> None:
         )
 
 
+async def reserve_ip_send(ip_hash: str, cap: int) -> bool:
+    """Claim one send for this connection today. False means the cap is reached.
+
+    Same atomic statement shape as `reserve_daily_send`, but the key is
+    `(day, ip_hash)` (ADR 0011): the visitor's own budget, two per UTC day, so
+    one connection cannot spend the global cap for everybody.
+    """
+    async with pool.session_scope() as session:
+        count = (
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO ip_send_counters (day, ip_hash, count)
+                    VALUES (current_date, :ip_hash, 1)
+                    ON CONFLICT (day, ip_hash) DO UPDATE
+                    SET count = ip_send_counters.count + 1
+                    WHERE ip_send_counters.count < :cap
+                    RETURNING count
+                    """
+                ),
+                {"ip_hash": ip_hash, "cap": cap},
+            )
+        ).scalar_one_or_none()
+
+    return count is not None
+
+
+async def release_ip_send(ip_hash: str) -> None:
+    """Give back a per-connection reservation after a failed send."""
+    async with pool.session_scope() as session:
+        await session.execute(
+            text(
+                """
+                UPDATE ip_send_counters SET count = GREATEST(count - 1, 0)
+                WHERE day = current_date AND ip_hash = :ip_hash
+                """
+            ),
+            {"ip_hash": ip_hash},
+        )
+
+
 async def reserve_daily_send(cap: int) -> int | None:
     """Claim one send from today's budget. None means the cap is reached.
 

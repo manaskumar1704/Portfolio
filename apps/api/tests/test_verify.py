@@ -52,9 +52,7 @@ async def test_a_path_that_was_ingested_verifies(ready_db) -> None:
 
 
 async def test_a_path_that_was_never_ingested_is_refused(ready_db) -> None:
-    verdict = await CorpusPathVerifier().verify(
-        "an answer", ["corpus/imagination.md"]
-    )
+    verdict = await CorpusPathVerifier().verify("an answer", ["corpus/imagination.md"])
 
     assert verdict.verified is False
     assert "not in the corpus" in verdict.note

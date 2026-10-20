@@ -8,8 +8,6 @@ raise, a flood of hits is capped — is behaviour the wire path inherits or must
 visibly change.
 """
 
-import pytest
-
 from app.services.connectors import (
     HIT_COUNT_MAX,
     HIT_TEXT_MAX_CHARS,
@@ -21,7 +19,6 @@ from app.services.connectors import (
     shape_hits,
     shape_verdict,
 )
-
 
 # --- The Protocols are satisfied by the fixtures ------------------------------
 
@@ -96,9 +93,7 @@ async def test_malformed_json_never_counts_as_support() -> None:
 
 async def test_a_waffle_note_with_a_real_verdict_survives() -> None:
     """Where the service did answer, its words — capped — are the note."""
-    verdict = shape_verdict(
-        "jobfinder", {"supported": True, "note": "x" * (NOTE_MAX_CHARS + 50)}
-    )
+    verdict = shape_verdict("jobfinder", {"supported": True, "note": "x" * (NOTE_MAX_CHARS + 50)})
 
     assert verdict.supported is True
     assert "[truncated, " in verdict.note
@@ -127,9 +122,9 @@ async def test_a_malformed_search_reply_is_never_halfness() -> None:
 
 
 async def test_a_flood_of_hits_is_capped() -> None:
-    payload = [
-        {"label": "note.md", "text": "long" * (HIT_TEXT_MAX_CHARS // 2)}
-    ] * (HIT_COUNT_MAX * 8)
+    payload = [{"label": "note.md", "text": "long" * (HIT_TEXT_MAX_CHARS // 2)}] * (
+        HIT_COUNT_MAX * 8
+    )
 
     reply = shape_hits("thirdbrain", payload)
 

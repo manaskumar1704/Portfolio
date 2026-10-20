@@ -206,7 +206,7 @@ async def test_cancel_withdraws_the_draft_and_clears_the_hash(client) -> None:
     )
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"cancelled": True, "message_id": created["id"], "reason": None}
+    assert response.json() == {"cancelled": True, "message_id": created["id"]}
 
     async with pool.session_scope() as session:
         row = (

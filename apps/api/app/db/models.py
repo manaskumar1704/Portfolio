@@ -212,6 +212,24 @@ class SendCounter(Base):
     count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
 
+class IpSendCounter(Base):
+    """The same day-counter trick, per actor: (day, ip_hash) is the cap.
+
+    The actor is the salted digest from ADR 0006, not the address; ADR 0011
+    records the tradeoff of keeping that digest for one day. Same atomic
+    single-statement cap as `SendCounter`, primary key `(day, ip_hash)`.
+
+    Retention deletes anything past its day — this is an anti-abuse counter,
+    never a log.
+    """
+
+    __tablename__ = "ip_send_counters"
+
+    day: Mapped[datetime.date] = mapped_column(DATE, primary_key=True)
+    ip_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+
 class IngestRun(Base):
     """One pass of the corpus importer.
 

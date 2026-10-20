@@ -1,16 +1,26 @@
-name: ci
-
-# Runs on every push and PR.
+# CI — the three surfaces this repo ships, each getting exactly the environment
+# it needs and nothing more:
 #
-# Two jobs, deliberately separate. `test` proves the app is sound with no
-# credentials at all. `integration` proves it actually talks to Postgres and
-# that pgvector is installed, using a real Neon project. Keeping them apart
-# means a fork's PR cannot run the integration job, because fork secrets are
-# not available to untrusted code.
+#   web   — bun tests, the typechecker, and a production build against no
+#           backend at all, because the browser bundle must not secretly
+#           require one (apps/web degrades to its built-in fixtures).
+#   api   — the full backend suite INCLUDING the database-marked integration
+#           tests, against a real Postgres with pgvector, migrated from zero.
+#           A migration that applied only to an already-loaded database would
+#           pass everywhere except here and then fail on deploy day.
+#   evals — the golden sets: retrieval (same fresh Postgres + fixture corpus),
+#           the offline NLI groundedness harness, and the live-model answer
+#           evals when a GEMINI_API_KEY secret is configured. Live evals skip
+#           by themselves when the secret is absent, which is the state every
+#           fork starts in.
+#
+# Secrets: none are required. GEMINI_API_KEY and DATABASE_URL stay out of both
+# jobs' expectations by design — CI runs stateless green on an empty fork.
+
+name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 concurrency:
@@ -19,72 +29,100 @@ concurrency:
 
 defaults:
   run:
-    working-directory: apps/api
+    shell: bash
 
 jobs:
-  test:
+  web:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
     steps:
-      - uses: actions/checkout@v5
-
-      # uv owns the lockfile: `uv sync --locked` fails if pyproject.toml and
-      # uv.lock disagree, so a stale lock is a red build instead of a surprise
-      # on Render.
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          enable-cache: true
+          # The version the lockfile and every local run are tested against;
+          # a floating major would let bun drift under the suite silently.
+          bun-version: "1.4.2"
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: bunx tsc --noEmit
+      - run: bun run build
 
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        run: uv sync --locked --dev
-
-      - name: Lint
-        run: uvx ruff check .
-
-      - name: Format check
-        run: uvx ruff format --check .
-
-      - name: Tests
-        # No DATABASE_URL: integration tests are deselected by default in
-        # pyproject.toml, so this proves the app runs with no credentials.
-        run: uv run pytest -q
-        env:
-          LOG_LEVEL: WARNING
-
-  integration:
+  api:
     runs-on: ubuntu-latest
-    # The migration runs DDL against the production branch, so this only runs on
-    # a push to main. A PR gets `test` only.
-    if: github.event_name == 'push'
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: portfolio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/portfolio
+      IP_HASH_SALT: ci-salt-placeholder-not-a-secret
+    defaults:
+      run:
+        working-directory: apps/api
     steps:
-      - uses: actions/checkout@v5
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          enable-cache: true
+          python-version: "3.12"
+      - run: pip install uv
+      - run: uv sync --frozen
+      - run: uv run alembic upgrade head
+      - run: uv run pytest -q
 
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        run: uv sync --locked --dev
-
-      # `alembic check` is the useful part: it fails if the models and the
-      # database have drifted apart, which is the failure mode that leaves a
-      # deployment quietly writing to a column that does not exist.
-      - name: Check for unapplied migrations
-        run: uv run alembic check
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SYNC_DATABASE_URL: ${{ secrets.SYNC_DATABASE_URL }}
-
-      - name: Integration tests
-        run: uv run pytest -q -m integration
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SYNC_DATABASE_URL: ${{ secrets.SYNC_DATABASE_URL }}
-          LOG_LEVEL: WARNING
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: portfolio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/portfolio
+      IP_HASH_SALT: ci-salt-placeholder-not-a-secret
+      # Empty on a fork: the live answer evals read this and skip. Set the
+      # secret to grade the golden set against the real model on every push.
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install uv
+      - run: uv sync --frozen
+        working-directory: apps/api
+      # The fixture loader resolves `corpus/_test` from the module's own
+      # location, not the working directory, so this is CWD-independent.
+      - run: uv run --project apps/api python -m ingest.fixtures
+        working-directory: .
+      - name: Cache the offline models (NLI, embeddings)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/fastembed
+          key: inference-models-v1
+      - name: Run the golden-set evals
+        run: uv run --project apps/api pytest evals
+        working-directory: .

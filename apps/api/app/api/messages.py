@@ -66,9 +66,8 @@ capability and the only place it is ever readable is the browser that received
 it in the `draft` event.
 """
 
-from datetime import UTC, datetime
-
 import hmac
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
@@ -138,13 +137,15 @@ async def authorise(
     token: str,
     resolved_ip: str,
     settings,
-) -> None:
+) -> dict:
     """Token, IP, expiry, pending — in that order, or `_Refusal`.
 
-    Shared by send, edit and cancel. The steps below describe what each route
-    once checked inline; the reason they are now one function is that a fourth
-    route would otherwise mean re-implementing a race-sensitive sequence, and
-    one implementation means one place to keep it honest.
+    Shared by send, edit and cancel. Returns the row the checks passed on —
+    send needs its `ip_hash` for the per-connection budget (ADR 0011). The
+    steps below describe what each route once checked inline; the reason they
+    are now one function is that a fourth route would otherwise mean
+    re-implementing a race-sensitive sequence, and one implementation means
+    one place to keep it honest.
     """
     # Constant-time against the stored hash. `==` on digests leaks length and
     # prefix through response timing; hmac.compare_digest does not. The SQL
@@ -190,6 +191,11 @@ async def authorise(
             "That message has already been handled.",
         )
 
+    return {
+        "id": row.id,
+        "ip_hash": row.ip_hash,
+    }
+
 
 @router.post("/messages/{message_id}/send", response_model=SendMessageResponse)
 async def send_message(
@@ -216,9 +222,11 @@ async def send_message(
 
     # --- 3 to 5. Token, IP, expiry, pending -------------------------------
     # Shared with the edit and cancel routes: `authorise` raises `_Refusal`,
-    # which converts back to this route's in-band response shape.
+    # which converts back to this route's in-band response shape. The row it
+    # returns carries the draft's `ip_hash` — the actor the per-connection
+    # budget counts below.
     try:
-        await authorise(message_id, payload.token, resolved_ip, settings)
+        checked = await authorise(message_id, payload.token, resolved_ip, settings)
     except _Refusal as refusal:
         log.info("approval refused", extra={"message_id": message_id})
         response.status_code = refusal.status_code
@@ -233,9 +241,26 @@ async def send_message(
             "Email is not configured on this site right now.",
         )
 
-    # --- 6. Daily cap ------------------------------------------------------
+    # --- 6. Caps. Per-connection first (ADR 0011): the cheap local gate
+    # rejects the flood before touching the shared counter. If the global cap
+    # then refuses, the visitor's own reservation is given back — it blocked
+    # for a reason that was never theirs.
+    reserved_ip = await message_queries.reserve_ip_send(
+        checked["ip_hash"], settings.ip_daily_send_cap
+    )
+    if not reserved_ip:
+        response.status_code = status.HTTP_429_TOO_MANY_REQUESTS
+        return SendMessageResponse(
+            sent=False,
+            message_id=message_id,
+            reason=(
+                "That connection has reached today's sending limit. Please try again tomorrow."
+            ),
+        )
+
     reserved = await message_queries.reserve_daily_send(settings.daily_send_cap)
     if reserved is None:
+        await message_queries.release_ip_send(checked["ip_hash"])
         log.info("daily send cap reached")
         response.status_code = status.HTTP_429_TOO_MANY_REQUESTS
         return SendMessageResponse(
@@ -251,6 +276,7 @@ async def send_message(
     claimed = await message_queries.claim_pending(message_id)
     if claimed is None:
         await message_queries.release_daily_send()
+        await message_queries.release_ip_send(checked["ip_hash"])
         response.status_code = status.HTTP_409_CONFLICT
         return SendMessageResponse(
             sent=False, message_id=message_id, reason="That message has already been handled."
@@ -272,6 +298,7 @@ async def send_message(
         provider_id = await send_notification(notification, settings)
     except (EmailError, contact.DraftError) as exc:
         await message_queries.release_daily_send()
+        await message_queries.release_ip_send(checked["ip_hash"])
         await message_queries.mark_failed(message_id, type(exc).__name__)
         log.error("send failed: %s", exc)
         raise HTTPException(
@@ -349,7 +376,9 @@ async def create_draft(payload: CreateDraftRequest, request: Request) -> CreateD
 
 
 @router.patch("/messages/{message_id}", response_model=DraftSummary)
-async def edit_message(message_id: int, payload: EditDraftRequest, request: Request) -> DraftSummary:
+async def edit_message(
+    message_id: int, payload: EditDraftRequest, request: Request
+) -> DraftSummary:
     """Change a pending draft's body. The token is used, not rotated."""
     settings = get_settings()
     resolved_ip = _resolved_ip(request, settings)

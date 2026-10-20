@@ -22,13 +22,12 @@ The messages table is wiped after each case, so eval runs leave nothing behind.
 """
 
 import pytest
-from sqlalchemy import text
-
 from app.core.client_ip import current_client_ip
 from app.core.config import get_settings
 from app.db import pool
 from app.services.chat import StreamEvent, run_chat_turn
 from app.services.llm import build_llm_client
+from sqlalchemy import text
 
 pytestmark = [
     pytest.mark.skipif(
@@ -104,9 +103,13 @@ async def test_a_supported_question_is_answered_from_a_real_file() -> None:
     assert "wren.ashby@example.invalid" in answer.lower(), answer
 
     sources = events[-1].data["sources"]
-    assert set(sources) <= CORPUS_FILES, f"cited non-corpus files: {set(sources) - CORPUS_FILES}"
+    assert set(sources) <= CORPUS_FILES, (
+        f"cited non-corpus files: {set(sources) - CORPUS_FILES}"
+    )
     assert sources, "an answered fact should cite the file it came from"
-    assert events[-1].data["sources_verified"] is False  # no verifier wired this release
+    assert (
+        events[-1].data["sources_verified"] is False
+    )  # no verifier wired this release
 
 
 async def test_a_project_question_cites_the_project_document() -> None:
@@ -160,7 +163,10 @@ async def test_a_real_contact_request_records_one_draft() -> None:
     assert len(drafts) == 1, f"expected one draft, got {len(drafts)}: {answer}"
 
     draft = drafts[0].data
-    assert draft["email"] == "taylor.example@example.com"
+    # The wire renames the visitor's address (decision 6): the tool argument and
+    # the database column stay `email`, the SSE draft event carries
+    # `sender_email`. The eval reads the wire, so the wire's spelling wins.
+    assert draft["sender_email"] == "taylor.example@example.com"
     assert "tayl" in str(draft["name"]).lower()
 
     # The tool result the model reads must not carry the token.

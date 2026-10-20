@@ -27,7 +27,8 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from app.core.client_ip import client_ip as resolve_client_ip, current_client_ip
+from app.core.client_ip import client_ip as resolve_client_ip
+from app.core.client_ip import current_client_ip
 from app.core.logging import get_logger
 from app.core.ratelimit import RateLimiter
 from app.core.retention import maybe_sweep

@@ -84,7 +84,9 @@ def downgrade() -> None:
     op.execute("UPDATE messages SET status = 'expired' WHERE status = 'cancelled'")
 
     op.execute("DROP TYPE IF EXISTS message_status_old")
-    op.execute("CREATE TYPE message_status_old AS ENUM ('pending','sending','sent','expired','failed')")
+    op.execute(
+        "CREATE TYPE message_status_old AS ENUM ('pending','sending','sent','expired','failed')"
+    )
     op.alter_column("messages", "status", server_default=None)
     op.alter_column(
         "messages",

@@ -28,10 +28,10 @@ def test_tracing_is_off_until_both_keys_are_present(monkeypatch) -> None:
     """Half-configured tracing must stay off, not blow up on the first request."""
     monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk")
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "")
-    assert Settings().tracing_enabled is False
+    assert Settings().langfuse_enabled is False
 
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk")
-    assert Settings().tracing_enabled is True
+    assert Settings().langfuse_enabled is True
 
 
 def test_settings_are_cached() -> None:

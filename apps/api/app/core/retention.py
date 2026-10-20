@@ -69,6 +69,7 @@ class SweepResult:
         self.stale_drafts = 0
         self.old_sent = 0
         self.old_counters = 0
+        self.old_ip_counters = 0
         self.reaped_sends = 0
 
     @property
@@ -78,6 +79,7 @@ class SweepResult:
             + self.stale_drafts
             + self.old_sent
             + self.old_counters
+            + self.old_ip_counters
             + self.reaped_sends
         )
 
@@ -85,7 +87,7 @@ class SweepResult:
         return (
             f"expired={self.expired_drafts} stale={self.stale_drafts} "
             f"sent={self.old_sent} counters={self.old_counters} "
-            f"reaped={self.reaped_sends}"
+            f"ip_counters={self.old_ip_counters} reaped={self.reaped_sends}"
         )
 
 
@@ -177,6 +179,13 @@ async def sweep_once(settings: Settings) -> SweepResult:
             await session.execute(text("DELETE FROM send_counters WHERE day < current_date - 7"))
         ).rowcount
 
+        # The per-connection counter keeps its actor (a salted IP digest, ADR
+        # 0011) for exactly one day: yesterday's rows leave at the next sweep
+        # after midnight. This is the promise the table exists under.
+        result.old_ip_counters = (
+            await session.execute(text("DELETE FROM ip_send_counters WHERE day < current_date"))
+        ).rowcount
+
         # No unlock. The lock is transaction-scoped and `session_scope` commits
         # on the way out of this block, which releases it. An explicit unlock here
         # would be the session-level mistake this block exists to fix.
@@ -262,6 +271,10 @@ async def dry_run(settings: Settings | None = None) -> SweepResult:
         ),
         "old_counters": (
             "SELECT count(*) FROM send_counters WHERE day < current_date - 7",
+            {},
+        ),
+        "old_ip_counters": (
+            "SELECT count(*) FROM ip_send_counters WHERE day < current_date",
             {},
         ),
     }

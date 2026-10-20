@@ -37,11 +37,13 @@ functions without an HTTP layer in between.
 """
 
 import json
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.logging import get_logger
+from app.core.tracing import TurnTrace
 from app.services import verify as source_verify
 from app.services.llm import MAX_TOOL_ITERATIONS, ChatMessage, LLMClient, ToolResult
 from app.tools import registry
@@ -105,6 +107,7 @@ async def run_chat_turn(
     """
     messages: list[ChatMessage] = [*(history or []), ChatMessage(role="user", text=message)]
     tools = registry.specs()
+    trace = TurnTrace()
 
     interaction_id: str | None = None
     pending_results: list[ToolResult] = []
@@ -113,6 +116,7 @@ async def run_chat_turn(
 
     for iteration in range(MAX_TOOL_ITERATIONS):
         turn = None
+        leg_started = time.monotonic()
         async for leg in client.stream(
             messages=messages,
             tools=tools,
@@ -125,6 +129,11 @@ async def run_chat_turn(
         if turn is None:
             log.warning("provider yielded no turn for iteration %d", iteration)
             break
+
+        # One span per leg: timing plus the usage the adapter already pulled
+        # off the provider response (ADR 0010). No-op unless LANGFUSE keys are
+        # configured, which is every suite run.
+        trace.leg(time.monotonic() - leg_started, turn.prompt_tokens, turn.completion_tokens)
 
         if turn.text:
             text_so_far += turn.text
@@ -154,8 +163,10 @@ async def run_chat_turn(
                 {"id": call.id, "name": call.name, "arguments": call.arguments},
             )
 
+            tool_started = time.monotonic()
             result, error = await registry.call(call.name, call.arguments)
             ok = error is None
+            trace.tool(call.name, ok, time.monotonic() - tool_started)
 
             # Strip the approval token before anything else sees it.
             #
@@ -217,6 +228,10 @@ async def run_chat_turn(
     if verifier is not None and sources:
         verdict = await verifier.verify(text_so_far, sources)
         sources_verified = verdict.verified
+
+    # The turn's shape, back to the tracer: sources existed or they did not,
+    # and the answer had this many characters. Values only; never the words.
+    trace.finish(len(sources), len(text_so_far))
 
     yield StreamEvent(
         "done",

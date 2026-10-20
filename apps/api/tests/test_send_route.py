@@ -70,6 +70,7 @@ async def client():
 
     await ensure_pool()
     await reset_budget()
+    await reset_ip_budget()
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
         try:
@@ -96,6 +97,10 @@ def configured(monkeypatch):
     monkeypatch.setattr(settings, "resend_api_key", "re_test_key")
     monkeypatch.setattr(settings, "resend_from", "onboarding@resend.dev")
     monkeypatch.setattr(settings, "daily_send_cap", 70)
+    # Generous so the ~30 sends this suite makes under the same fixture IP do
+    # not smear into the per-connection cap. The tests that target the cap
+    # shrink it themselves.
+    monkeypatch.setattr(settings, "ip_daily_send_cap", 100)
 
     # `ASGITransport` presents as 127.0.0.1, so loopback has to be a trusted peer
     # for `X-Forwarded-For` to be honoured at all. In production this list holds
@@ -137,6 +142,20 @@ async def reset_budget() -> None:
 
     async with pool.session_scope() as session:
         await session.execute(text("UPDATE send_counters SET count = 0 WHERE day = current_date"))
+
+
+async def reset_ip_budget() -> None:
+    """Clear today's per-connection counters (ADR 0011).
+
+    The rows survive between test runs the same way the global one does, keyed
+    by the salted digest of the IP every test in this suite sends from.
+    """
+    from sqlalchemy import text
+
+    from app.db import pool
+
+    async with pool.session_scope() as session:
+        await session.execute(text("DELETE FROM ip_send_counters WHERE day = current_date"))
 
 
 async def send(
@@ -441,6 +460,89 @@ async def test_the_approval_cap_is_enforced(client, monkeypatch) -> None:
     # protection. The fourth is the first 429.
     assert 429 in codes, codes
     assert codes.index(429) == 3, codes
+
+
+# --- The per-connection daily cap (ADR 0011) --------------------------------
+
+
+async def test_a_connection_loses_the_budget_after_two_sends(client, monkeypatch) -> None:
+    """Two sends per IP per UTC day. The global cap never notices this.
+
+    Sends three *different* drafts from one connection, so nothing here is
+    replay protection — the third answer is the per-connection cap saying no
+    while the global counter is untouched underneath it.
+    """
+    from app.core.config import get_settings
+    from tests.helpers import make_pending_draft
+
+    monkeypatch.setattr(get_settings(), "ip_daily_send_cap", 2)
+
+    drafts = [await make_pending_draft(IP=IP, salt=SALT) for _ in range(3)]
+
+    first = await send(client, drafts[0].id, drafts[0].token, client_ip=IP)
+    second = await send(client, drafts[1].id, drafts[1].token, client_ip=IP)
+    third = await send(client, drafts[2].id, drafts[2].token, client_ip=IP)
+
+    assert first["status"] == 200
+    assert second["status"] == 200
+    assert third["status"] == 429, third
+    assert third["json"]["sent"] is False
+    assert "connection" in third["json"]["reason"], third
+
+
+async def test_a_failed_send_gives_the_connection_its_slot_back(client, monkeypatch) -> None:
+    """A provider outage must not eat the visitor's two sends.
+
+    The first send raises on the way to the provider and is released; the
+    second draft from the same connection still goes through.
+    """
+    from app.core.config import get_settings
+    from app.services.email import EmailError
+    from tests.helpers import make_pending_draft
+
+    monkeypatch.setattr(get_settings(), "ip_daily_send_cap", 1)
+
+    first = await make_pending_draft(IP=IP, salt=SALT)
+
+    from app.api import messages as messages_api
+
+    async def failing_send(notification, config, client=None):
+        raise EmailError("provider said no")
+
+    monkeypatch.setattr(messages_api, "send_notification", failing_send)
+    result = await send(client, first.id, first.token, client_ip=IP)
+    assert result["status"] == 502, result
+
+    async def working_send(notification, config, client=None):
+        return "provider-test-id"
+
+    monkeypatch.setattr(messages_api, "send_notification", working_send)
+
+    second = await make_pending_draft(IP=IP, salt=SALT)
+    retry = await send(client, second.id, second.token, client_ip=IP)
+
+    assert retry["status"] == 200, retry
+
+
+async def test_another_connection_spends_its_own_budget(client, monkeypatch) -> None:
+    """The counter keys on the digest of the requesting network, one each.
+
+    Two drafts from two different IPs, cap 1: both send. The first connection's
+    spend is invisible to the second, and vice versa.
+    """
+    from app.core.config import get_settings
+    from tests.helpers import make_pending_draft
+
+    monkeypatch.setattr(get_settings(), "ip_daily_send_cap", 1)
+
+    theirs = await make_pending_draft(IP="9.9.9.9", salt=SALT)
+    mine = await make_pending_draft(IP=IP, salt=SALT)
+
+    sent_theirs = await send(client, theirs.id, theirs.token, client_ip="9.9.9.9")
+    sent_mine = await send(client, mine.id, mine.token, client_ip=IP)
+
+    assert sent_theirs["status"] == 200, sent_theirs
+    assert sent_mine["status"] == 200, sent_mine
 
 
 async def test_rate_limiting_happens_before_the_token_check(client) -> None:

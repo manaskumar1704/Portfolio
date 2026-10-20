@@ -23,7 +23,6 @@ putting them here as passes would heat the gate.
 """
 
 import pytest
-
 from app.core.config import get_settings
 from app.db import pool
 from app.services import rag
@@ -59,6 +58,12 @@ def settings():
 # paraphrase.
 ON_TOPIC = [
     ("what is his email address?", ["contact.md"]),
+    # The persona's name, from the other side: the site says "Manas", the docs
+    # say "Wren Ashby". contact.md carries the bridge sentence, so a query that
+    # includes the name still lands on the file that holds the fact — the
+    # phrasing a visitor types most often is after all the one the corpus never
+    # spells out otherwise.
+    ("what is manas's email address?", ["contact.md"]),
     ("current company and designation", ["naukri-snapshot.md"]),
     ("professional data engineer certificate", ["certifications.md"]),
     ("query plan into a diff tool", ["projects.md"]),
@@ -79,7 +84,9 @@ OFF_TOPIC = [
 
 
 async def _paths(query: str, settings, limit: int = rag.DEFAULT_LIMIT) -> list[str]:
-    return [chunk.source_path for chunk in await rag.search(query, settings, limit=limit)]
+    return [
+        chunk.source_path for chunk in await rag.search(query, settings, limit=limit)
+    ]
 
 
 @pytest.mark.parametrize(("question", "expected_files"), ON_TOPIC)
@@ -95,7 +102,9 @@ async def test_supported_questions_retrieve_the_right_document(
 
 
 @pytest.mark.parametrize("question", OFF_TOPIC)
-async def test_off_topic_questions_retrieve_nothing(question, ready_db, settings) -> None:
+async def test_off_topic_questions_retrieve_nothing(
+    question, ready_db, settings
+) -> None:
     paths = await _paths(question, settings)
 
     assert paths == [], f"'{question}' retrieved {paths} from a corpus about a nobody"

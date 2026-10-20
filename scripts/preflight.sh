@@ -186,9 +186,14 @@ if [ "$FAST" -eq 0 ]; then
 
   PORT=8137
   docker rm -f preflight-api >/dev/null 2>&1
+  # APPROVE_LIMIT_PER_HOUR is raised only inside this throwaway container: the
+  # lifecycle smoke below spends three approval attempts against the same
+  # in-process limiter bucket, and the default of 3 would 429 the third. The
+  # production default in render.yaml stays untouched.
   if docker run -d --name preflight-api \
        --memory=512m --cpus=0.1 -p "$PORT:8000" \
        -e DATABASE_URL="${DATABASE_URL:-}" \
+       -e APPROVE_LIMIT_PER_HOUR="${APPROVE_LIMIT_PER_HOUR:-6}" \
        portfolio-api:preflight >/dev/null 2>&1; then
 
     # The boot sweep runs alembic-free work against Postgres; give it room, but
@@ -268,7 +273,76 @@ if [ "$FAST" -eq 0 ]; then
       warn "expected 403 for a bogus approval, got $RESP"
     fi
 
-    # ═══ 9. Probe route must be closed ═══════════════════════════════════════
+    # ═══ 9. Contact lifecycle: create → edit → cancel (no mail) ═══════════════
+    step "contact lifecycle smoke (create, edit, cancel; no mail is sent)"
+    BASE="http://127.0.0.1:$PORT"
+
+    CREATE=$(curl -sS -w '\n%{http_code}' -X POST "$BASE/messages/drafts" \
+      -H 'Content-Type: application/json' \
+      -d '{"name":"Preflight Smoke","sender_email":"preflight@example.invalid","body":"A preflight lifecycle draft. It is edited, then cancelled; nothing is ever sent."}' 2>&1)
+
+    CREATE_CODE=$(tail -n1 <<<"$CREATE")
+    CREATE_BODY=$(head -n -1 <<<"$CREATE")
+
+    if [ "$CREATE_CODE" = "201" ]; then
+      ok "a fixture draft was recorded (201); it expires on its own"
+    else
+      bad "expected 201 recording the draft, got $CREATE_CODE"
+      head -3 <<<"$CREATE_BODY" | sed 's/^/        /'
+    fi
+
+    # The token is read host-side and printed nowhere — same rule as the
+    # variable report: a length and a verdict, never a value.
+    LIFECYCLE=$(uv run python -c 'import json,sys
+try:
+    d = json.load(sys.stdin)
+    print(d.get("id", ""), d.get("token", ""))
+except Exception:
+    print("", "")' <<<"$CREATE_BODY")
+
+    DRAFT_ID=$(cut -d' ' -f1 <<<"$LIFECYCLE")
+    TOKEN=$(cut -d' ' -f2 <<<"$LIFECYCLE")
+
+    if [ -n "$TOKEN" ] && [ "$DRAFT_ID" != "" ]; then
+      ok "the response carried a draft id and a token (token shown nowhere)"
+    else
+      bad "the create response was missing an id or a token"
+    fi
+
+    if [ -n "$TOKEN" ]; then
+      EDIT=$(curl -sS -o /dev/null -w '%{http_code}' -X PATCH \
+        "$BASE/messages/$DRAFT_ID" \
+        -H 'Content-Type: application/json' \
+        -d "{\"token\":\"$TOKEN\",\"body\":\"Edited by the preflight smoke. Still nothing sent.\"}" 2>&1)
+      if [ "$EDIT" = "200" ]; then
+        ok "the draft was edited in place (200)"
+      else
+        bad "expected 200 editing the draft, got $EDIT"
+      fi
+
+      CANCEL=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+        "$BASE/messages/$DRAFT_ID/cancel" \
+        -H 'Content-Type: application/json' \
+        -d "{\"token\":\"$TOKEN\"}" 2>&1)
+      if [ "$CANCEL" = "200" ]; then
+        ok "the draft was withdrawn (200); no mail went anywhere"
+      else
+        bad "expected 200 cancelling the draft, got $CANCEL"
+      fi
+
+      # One-shot by construction: the token was spent by the cancel above.
+      REPLAY=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+        "$BASE/messages/$DRAFT_ID/cancel" \
+        -H 'Content-Type: application/json' \
+        -d "{\"token\":\"$TOKEN\"}" 2>&1)
+      if [ "$REPLAY" = "403" ]; then
+        ok "a replayed cancel is refused (403); the capability died with its use"
+      else
+        warn "expected 403 replaying the cancel, got $REPLAY"
+      fi
+    fi
+
+    # ═══ 10. Probe route must be closed ═══════════════════════════════════════
     PROBE=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/_probe/headers" 2>&1)
     if [ "$PROBE" = "404" ]; then
       ok "the header probe is closed (404)"
@@ -287,7 +361,7 @@ else
   warn "skipped (--fast)"
 fi
 
-# ═══ 10. Corpus ═════════════════════════════════════════════════════════════
+# ═══ 11. Corpus ═════════════════════════════════════════════════════════════
 step "Corpus"
 CHUNKS=$(uv run python - <<'PY' 2>/dev/null
 import asyncio

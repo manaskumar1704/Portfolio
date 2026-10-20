@@ -147,7 +147,9 @@ def test_the_draft_event_carries_the_approval_token() -> None:
 
     assert "approvalToken" in draft, "the draft event lost its approval token"
     assert "approval_token" not in draft, "the frontend must use the camelCase spelling"
-    assert "senderEmail: string" in draft, "the draft event names the visitor's address senderEmail (decision 6)"
+    assert "senderEmail: string" in draft, (
+        "the draft event names the visitor's address senderEmail (decision 6)"
+    )
     assert "email: string" not in draft, "the old short name must not survive in the event"
 
 
@@ -191,9 +193,7 @@ def test_every_draft_emission_carries_the_full_field_set() -> None:
     found = False
     for path in EMITTERS:
         source = path.read_text(encoding="utf-8")
-        for payload in re.findall(
-            r'StreamEvent\(\s*"draft",\s*\{([^}]*?)\}\s*,?\s*\)', source
-        ):
+        for payload in re.findall(r'StreamEvent\(\s*"draft",\s*\{([^}]*?)\}\s*,?\s*\)', source):
             found = True
             keys = set(re.findall(r'"(\w+)":', payload))
             assert keys == DRAFT_FIELDS, f"{path.name} emits {sorted(keys)}"

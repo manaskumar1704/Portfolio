@@ -105,15 +105,18 @@ services:
         value: "1"
 
       - key: RATE_LIMIT_PER_MINUTE
-        value: "10"
+        value: "15"
       - key: RATE_LIMIT_BURST
-        value: "10"
+        value: "15"
       - key: APPROVE_LIMIT_PER_HOUR
         value: "3"
       # Resend's free tier allows 100/day. The cap sits under it with room for
       # the failed sends that still consume a reservation.
       - key: DAILY_SEND_CAP
         value: "70"
+      # The per-connection counter (ADR 0011): two sends per IP per day.
+      - key: IP_DAILY_SEND_CAP
+        value: "2"
       - key: DRAFT_RETENTION_DAYS
         value: "7"
       - key: SENT_ROW_RETENTION_DAYS

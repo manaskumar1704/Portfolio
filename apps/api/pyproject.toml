@@ -15,6 +15,7 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "google-genai>=2.25",
   "fastembed>=0.9.0",
+  "langfuse==5.0.3",
 ]
 
 [dependency-groups]
