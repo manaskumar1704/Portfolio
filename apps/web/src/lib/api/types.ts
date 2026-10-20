@@ -64,7 +64,8 @@ export type ChatEvent =
       kind: "draft";
       id: number;
       name: string;
-      email: string;
+      /** decision 6: the visitor's address is senderEmail on this side of the wire. */
+      senderEmail: string;
       body: string;
       /** The send capability. Never stored, never rendered, never logged. */
       approvalToken: string;
@@ -90,7 +91,7 @@ export type ChatEvent =
 export type Draft = {
   id: number;
   name: string;
-  email: string;
+  senderEmail: string;
   body: string;
   expiresAt: string;
 };

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { ContactRow } from "@/components/ui/contact-row";
 import { PanelCap } from "@/components/ui/panel-cap";
 import { Reveal } from "@/components/ui/reveal";
@@ -7,9 +9,21 @@ import { SectionHead } from "@/components/ui/section-head";
 import { getContact } from "@/lib/api/contact";
 import { useAsync } from "@/lib/api/use-async";
 
+import { MessageForm } from "./message-form";
+
 /** Contact section: the contact.sh panel with loading / error states. */
 export function ContactSection() {
   const { status, data, retry } = useAsync(getContact);
+  const [formOpen, setFormOpen] = useState(false);
+
+  // `/contact` in the agent console opens this form. The console hook and this
+  // section are different component trees, so the hand-off is one custom event —
+  // no shared context, no store, and the name in one place per side.
+  useEffect(() => {
+    const open = () => setFormOpen(true);
+    window.addEventListener("contact:open", open);
+    return () => window.removeEventListener("contact:open", open);
+  }, []);
 
   return (
     <section id="contact" className="scroll-mt-16 py-[clamp(44px,7vw,84px)]">
@@ -79,6 +93,23 @@ export function ContactSection() {
             {data ? (
               <p className="mt-3.5 text-[0.9em] text-faint">{data.note}</p>
             ) : null}
+
+            {/* The second draft issuer. The chat can ask the model to draft;
+                this needs no model — and both end at the same approval. */}
+            {formOpen ? (
+              <MessageForm />
+            ) : (
+              <div className="mt-4 border-t border-border pt-2.5">
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(true)}
+                  className="cursor-pointer text-accent hover:underline"
+                >
+                  ./message --new
+                </button>
+                <span className="ml-2 text-faint">write to the owner&apos;s inbox</span>
+              </div>
+            )}
           </div>
 
           <div className="px-3 pt-2">

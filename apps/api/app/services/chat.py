@@ -172,7 +172,10 @@ async def run_chat_turn(
                         {
                             "id": result.get("draft_id"),
                             "name": result.get("name"),
-                            "email": result.get("email"),
+                            # decision 6: the visitor's address is
+                            # `sender_email` everywhere the browser reads it.
+                            # The DB column and the tool argument stay `email`.
+                            "sender_email": result.get("email"),
                             "body": result.get("body_preview"),
                             "approval_token": token,
                             "expires_at": result.get("expires_at"),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+
 import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 
 /** Fade-up on scroll into view; instant under reduced motion. */
@@ -36,7 +36,7 @@ export function Reveal({
   }, [reduced]);
 
   return (
-    <div ref={ref} className={cn("reveal", className)}>
+    <div ref={ref} className={`reveal ${className ?? ""}`}>
       {children}
     </div>
   );

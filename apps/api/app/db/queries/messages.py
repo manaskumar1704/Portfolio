@@ -67,7 +67,7 @@ async def claim_pending(message_id: int) -> dict | None:
                     UPDATE messages
                     SET status = 'sending'
                     WHERE id = :id AND status = 'pending'
-                    RETURNING id, name, email, body, ip_hash
+                    RETURNING id, name, email, body, company, role, subject
                     """
                 ),
                 {"id": message_id},
@@ -82,7 +82,11 @@ async def claim_pending(message_id: int) -> dict | None:
         "name": row.name,
         "email": row.email,
         "body": row.body,
-        "ip_hash": row.ip_hash,
+        # The form's context fields. They ride to `build_notification`, which
+        # spells them into the owner's email; chat-created drafts carry none.
+        "company": row.company,
+        "role": row.role,
+        "subject": row.subject,
     }
 
 
@@ -128,6 +132,70 @@ async def mark_expired(message_id: int) -> None:
             text("UPDATE messages SET status = 'expired' WHERE id = :id AND status = 'pending'"),
             {"id": message_id},
         )
+
+
+async def update_pending_body(message_id: int, body: str) -> dict | None:
+    """Rewrite a pending draft's body after authorisation. None when not pending.
+
+    Same `AND status = 'pending'` guard as `claim_pending`: the claim for send or
+    the cancel for withdrawal and this edit are all racing on one row, and the
+    row lock picks exactly one winner per state change.
+
+    The token is not rotated on edit. The edit is authorised BY the token; the
+    token already lives in a browser, and rotating would make the happy path
+    (edit then approve from the same page) impossible.
+    """
+    async with pool.session_scope() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    UPDATE messages
+                    SET body = :body
+                    WHERE id = :id AND status = 'pending'
+                    RETURNING id, name, email, body, status, created_at, expires_at
+                    """
+                ),
+                {"id": message_id, "body": body},
+            )
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "id": row.id,
+        "name": row.name,
+        "email": row.email,
+        "body": row.body,
+        "status": row.status,
+        "created_at": row.created_at,
+        "expires_at": row.expires_at,
+    }
+
+
+async def cancel_pending(message_id: int) -> bool:
+    """Withdraw a pending draft: status becomes `cancelled`, the hash goes to null.
+
+    The IP hash is cleared here rather than left to a sweep, same as in
+    `mark_sent`: the binding between draft and connection has served its purpose
+    the moment the draft can never be approved again, which is now. The row
+    itself survives for the retention window, because "did my withdrawal
+    register?" is a dispute worth being able to answer.
+    """
+    async with pool.session_scope() as session:
+        result = await session.execute(
+            text(
+                """
+                UPDATE messages
+                SET status = 'cancelled', ip_hash = NULL
+                WHERE id = :id AND status = 'pending'
+                """
+            ),
+            {"id": message_id},
+        )
+
+    return bool(result.rowcount)
 
 
 async def release_daily_send() -> None:

@@ -10,6 +10,9 @@
  *   normal streaming path like any other message, citations and all.
  * - `reply` — answered here in the browser with no LLM call, so the answer is
  *   never invented from nothing and costs nothing when the API is asleep.
+ * - `contact` — the `/contact` reply, plus one client side effect: the contact
+ *   panel's message form opens. The boundary above still holds — a command
+ *   opens a field that exists on this page; it does not navigate.
  * - `clear` — local transcript reset.
  *
  * A command is matched on its first word only, case-insensitively; commands
@@ -34,7 +37,7 @@ export const COMMANDS_HELP = `Plain words work — answers come from Manas's own
 
 /skills · /projects · /resume — answered, with sources
 
-/contact — where to write
+/contact — where to write (opens the message form)
 
 /clear — start the conversation over
 
@@ -45,6 +48,9 @@ An answer never sends email by itself: a message becomes a draft that needs an e
 export type CommandOutcome =
   | { kind: "prompt"; message: string }
   | { kind: "reply"; message: string }
+  /** `/contact` is a reply with one side effect: it opens the contact panel's
+   *  message form (the hook dispatches the event). Still no navigation. */
+  | { kind: "contact"; message: string }
   | { kind: "clear" };
 
 /** `null`: not a command. `"unknown"`: starts with `/`, is not in the table. */
@@ -65,10 +71,11 @@ const TABLE: Readonly<Record<string, CommandOutcome>> = {
       "Walk me through Manas's resume — recent roles, education, and the skills he highlights.",
   },
   "/contact": {
-    kind: "reply",
+    kind: "contact",
     message:
-      "Manas's contact details are in the contact panel on the landing page. " +
-      "Or ask me plainly — 'how can I reach Manas?' — and I'll answer with citations.",
+      "The message form is open in the contact panel below — Manas's address is " +
+      "there too. A written message becomes a draft first: nothing is sent until " +
+      "you approve it.",
   },
   "/compare-jd": {
     kind: "reply",

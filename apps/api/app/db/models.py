@@ -43,7 +43,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 #
 # Mirrored in the migration's `MESSAGE_STATUSES`; the two must agree or
 # `alembic check` proposes a type change.
-MESSAGE_STATUSES = ("pending", "sending", "sent", "expired", "failed")
+MESSAGE_STATUSES = ("pending", "sending", "sent", "expired", "failed", "cancelled")
 
 
 class Base(DeclarativeBase):
@@ -152,6 +152,12 @@ class Message(Base):
         nullable=False,
     )
     approval_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # The POST /messages/drafts form's context fields. Nullable: chat-created
+    # drafts (`draft_message`) take none of them, and an absent value arriving
+    # in the email as a blank line is worse than it not arriving.
+    company: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    role: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    subject: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # A salted SHA-256 of the visitor's normalised address, never the address
     # itself. Nulled the moment the message is sent: the IP's only job is to bind
     # a draft to the connection that wrote it, and that job ends at approval.

@@ -147,6 +147,8 @@ def test_the_draft_event_carries_the_approval_token() -> None:
 
     assert "approvalToken" in draft, "the draft event lost its approval token"
     assert "approval_token" not in draft, "the frontend must use the camelCase spelling"
+    assert "senderEmail: string" in draft, "the draft event names the visitor's address senderEmail (decision 6)"
+    assert "email: string" not in draft, "the old short name must not survive in the event"
 
 
 # `done` is the only multi-field event both emitters build by hand, and fields
@@ -171,6 +173,32 @@ def test_every_done_emission_carries_the_full_field_set() -> None:
         assert match is not None, f"no done emission found in {path}"
         keys = set(re.findall(r'"(\w+)":', match.group(1)))
         assert keys == DONE_FIELDS, f"{path.name} emits {sorted(keys)}"
+
+
+# The `draft` event gets the same treatment as `done`: it is built by hand in a
+# dict literal, and decision 6 renamed exactly one key at the wire — the visitor
+# address. The emitter is the side that must not quietly revert to `email`.
+DRAFT_FIELDS = {"id", "name", "sender_email", "body", "approval_token", "expires_at"}
+
+
+def test_every_draft_emission_carries_the_full_field_set() -> None:
+    """Whoever emits a draft event spells the address sender_email.
+
+    The tool *result* keeps `email` — the model-facing argument, unchanged —
+    while the event the browser sees renames. Both spellings therefore exist in
+    `services/chat.py` and only one of them is wrong inside a `StreamEvent`.
+    """
+    found = False
+    for path in EMITTERS:
+        source = path.read_text(encoding="utf-8")
+        for payload in re.findall(
+            r'StreamEvent\(\s*"draft",\s*\{([^}]*?)\}\s*,?\s*\)', source
+        ):
+            found = True
+            keys = set(re.findall(r'"(\w+)":', payload))
+            assert keys == DRAFT_FIELDS, f"{path.name} emits {sorted(keys)}"
+
+    assert found, "no draft emission found in any emitter"
 
 
 def test_the_frontend_declares_sources_verified_as_a_boolean() -> None:

@@ -1,6 +1,10 @@
 "use client";
 
-import { ArrowUp } from "lucide-react";
+/**
+ * The up arrow, inlined. One glyph for the whole site: `lucide-react` ships a
+ * tree of icons for what a single <svg> does natively, so the dependency went
+ * and the 1-em stroke set it drew stays, copied verbatim from its ArrowUp.
+ */
 
 type ComposerProps = {
   value: string;
@@ -62,7 +66,20 @@ export function Composer({
             : "border-border text-faint"
         }`}
       >
-        <ArrowUp size={18} aria-hidden="true" />
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m5 12 7-7 7 7" />
+          <path d="M12 19V5" />
+        </svg>
       </button>
     </form>
   );

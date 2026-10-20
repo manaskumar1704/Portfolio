@@ -61,7 +61,12 @@ export function AgentPanel() {
               ))}
 
               {draft && (
-                <DraftApproval draft={draft} readToken={readToken} onSent={clearDraft} />
+                <DraftApproval
+                  draft={draft}
+                  readToken={readToken}
+                  onSent={clearDraft}
+                  onDiscard={clearDraft}
+                />
               )}
             </div>
             {isHome ? <Landing dismissed={dismissed} /> : null}

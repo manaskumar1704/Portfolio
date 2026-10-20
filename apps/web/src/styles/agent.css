@@ -128,7 +128,6 @@
   padding: 0.7em 0.8em;
 }
 
-.draft-sent { border-left-color: var(--ok); color: var(--dim); }
 .draft-tick { color: var(--ok); margin-right: 0.35em; }
 
 .draft-head { align-items: baseline; display: flex; gap: 0.5em; margin-bottom: 0.4em; }
@@ -155,6 +154,23 @@
 .draft-approve:hover:not(:disabled) { filter: brightness(1.08); }
 .draft-approve:disabled { cursor: default; opacity: 0.55; }
 .draft-approve:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The discard is the primary control at a quieter volume: withdrawing is the
+   visitor's own cancelling of their own draft, and must not dress like the
+   action it refuses to imitate — sending. */
+.draft-discard {
+  background: transparent;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  color: var(--dim);
+  cursor: pointer;
+  font: inherit;
+  margin-left: 0.5em;
+  padding: 0.35em 0.9em;
+}
+.draft-discard:hover { color: var(--text); }
+.draft-discard:disabled { cursor: default; opacity: 0.55; }
+.draft-discard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .draft-failed { color: var(--err); font-size: 0.9em; margin: 0.6em 0 0; }
 .draft-lapsed { color: var(--faint); font-size: 0.9em; margin: 0.5em 0 0; }

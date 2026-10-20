@@ -45,7 +45,7 @@ describe("resolveCommand", () => {
   });
 
   test("the local commands are local", () => {
-    expect(outcome("/contact", "reply").message.length).toBeGreaterThan(0);
+    expect(outcome("/contact", "contact").message.length).toBeGreaterThan(0);
     expect(outcome("/help", "reply").message.length).toBeGreaterThan(0);
     expect(resolveCommand("/clear")).toEqual({ kind: "clear" });
   });

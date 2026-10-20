@@ -276,11 +276,19 @@ def test_the_status_enum_covers_everything_the_route_writes() -> None:
     `sending` is the state a row sits in between the atomic claim and the
     provider call, so a crash there leaves a traceable state rather than a row
     that looks forever pending. `failed` exists because a Resend error must be
-    recorded, not retried blind.
+    recorded, not retried blind. `cancelled` exists because the visitor can
+    withdraw their own draft — the one transition the visitor initiates.
     """
     from app.db.models import MESSAGE_STATUSES
 
-    assert set(MESSAGE_STATUSES) == {"pending", "sending", "sent", "expired", "failed"}
+    assert set(MESSAGE_STATUSES) == {
+        "pending",
+        "sending",
+        "sent",
+        "expired",
+        "failed",
+        "cancelled",
+    }
 
 
 def test_the_daily_cap_is_below_resends_free_tier() -> None:

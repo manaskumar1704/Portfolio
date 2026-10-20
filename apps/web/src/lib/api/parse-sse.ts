@@ -154,7 +154,7 @@ function mapKnown(kind: string, d: Record<string, unknown>): ChatEvent {
         kind: "draft",
         id: num(d.id),
         name: str(d.name),
-        email: str(d.email),
+        senderEmail: str(d.sender_email),
         body: str(d.body),
         approvalToken: str(d.approval_token),
         expiresAt: str(d.expires_at),

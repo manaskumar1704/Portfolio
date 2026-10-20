@@ -88,7 +88,9 @@ if settings.cors_origins:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST"],
+        # PATCH exists for the draft-edit route. Method lists are strict here,
+        # not *, so a new method has to be a decision rather than an accident.
+        allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["*"],
     )
 

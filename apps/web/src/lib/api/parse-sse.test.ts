@@ -249,7 +249,7 @@ describe("the real event set", () => {
       frame("draft", {
         id: 12,
         name: "Ada",
-        email: "ada@example.com",
+        sender_email: "ada@example.com",
         body: "Hello",
         approval_token: "TOKEN",
         expires_at: "2026-10-11T12:00:00Z",
@@ -279,7 +279,7 @@ describe("the real event set", () => {
       frame("draft", {
         id: 12,
         name: "Ada",
-        email: "ada@example.com",
+        sender_email: "ada@example.com",
         body: "Hello",
         approval_token: "abc123",
         expires_at: "2026-10-11T12:00:00Z",

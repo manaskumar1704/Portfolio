@@ -30,8 +30,14 @@ or an authenticated external sweep endpoint would close the gap properly.
 |---|---|---|
 | `pending` | past `expires_at` | **deleted** |
 | `pending` | past `draft_retention_days` | **deleted**, whatever the expiry says |
-| `sent` / `failed` | past `sent_row_retention_days` | **deleted** |
+| `sent` / `failed` / `cancelled` | past `sent_row_retention_days` | **deleted** |
 | any, still holding `ip_hash` | immediately on send | `ip_hash` nulled, row kept |
+
+`cancelled` rides with the terminal statuses: the visitor withdrew it, so it
+holds a capability nobody will ever exercise, but the body stays until the same
+window as a sent row because "did my message actually get withdrawn?" is the
+same kind of dispute "was it actually sent?" is. The cancel route nulls
+`ip_hash` itself, the moment the withdrawal is recorded.
 
 The row survives a send on purpose. Clearing the hash is about privacy; deleting
 the row is about tidiness, and a visitor disputing that their message was sent is
@@ -147,14 +153,16 @@ async def sweep_once(settings: Settings) -> SweepResult:
             )
         ).rowcount
 
-        # Sent and failed rows keep their body for a while, then go. The IP
-        # hash was already cleared at send time.
+        # Sent and failed rows keep their body for a while, then go. Cancelled
+        # rows go with them: withdrawn by the visitor, holding a capability that
+        # will never be exercised. The IP hash was already cleared at send or
+        # cancel time.
         result.old_sent = (
             await session.execute(
                 text(
                     """
                     DELETE FROM messages
-                    WHERE status IN ('sent', 'failed')
+                    WHERE status IN ('sent', 'failed', 'cancelled')
                       AND COALESCE(sent_at, created_at)
                           < now() - make_interval(days => :days)
                     """
@@ -248,7 +256,7 @@ async def dry_run(settings: Settings | None = None) -> SweepResult:
             {"days": settings.draft_retention_days},
         ),
         "old_sent": (
-            "SELECT count(*) FROM messages WHERE status IN ('sent', 'failed') "
+            "SELECT count(*) FROM messages WHERE status IN ('sent', 'failed', 'cancelled') "
             "AND COALESCE(sent_at, created_at) < now() - make_interval(days => :days)",
             {"days": settings.sent_row_retention_days},
         ),

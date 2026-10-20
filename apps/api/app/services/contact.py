@@ -68,6 +68,9 @@ DRAFT_TTL = timedelta(hours=72)
 MAX_NAME = 200
 MAX_EMAIL = 320
 MAX_BODY = 4000
+# The form's context fields: company, role, subject. Optional everywhere, capped
+# tightly because each lands in the notification email's text header block.
+MAX_META = 200
 
 # Control characters, minus tab and newline. A body with \x00 in it is either a
 # bug or an attempt to break something downstream.
@@ -94,6 +97,9 @@ class Draft:
     created_at: datetime
     expires_at: datetime
     token: str
+    company: str | None = None
+    role: str | None = None
+    subject: str | None = None
 
 
 def generate_token() -> str:
@@ -153,7 +159,25 @@ def validate_draft(name: str, email: str, body: str) -> tuple[str, str, str]:
     return name, address, body
 
 
-async def create_draft(name: str, email: str, body: str) -> Draft:
+def clean_meta(value: str | None, label: str) -> str | None:
+    """One optional context field. Empty means absent; text means capped text."""
+    cleaned = clean_text(value or "")
+    if not cleaned:
+        return None
+    if len(cleaned) > MAX_META:
+        raise DraftError(f"The {label} is too long (limit {MAX_META} characters).")
+    return cleaned
+
+
+async def create_draft(
+    name: str,
+    email: str,
+    body: str,
+    *,
+    company: str | None = None,
+    role: str | None = None,
+    subject: str | None = None,
+) -> Draft:
     """Write a `pending` row. Returns the draft with its plaintext token.
 
     The visitor's address reaches this through the request context
@@ -164,6 +188,10 @@ async def create_draft(name: str, email: str, body: str) -> Draft:
     plaintext address is not stored, because nothing reads it.
     """
     name, address, body = validate_draft(name, email, body)
+    # The context fields are the form's to send and nobody else's to require.
+    company = clean_meta(company, "company")
+    role = clean_meta(role, "role")
+    subject = clean_meta(subject, "subject")
 
     ip_hash = hash_from_settings(current_client_ip.get(), get_settings())
     if ip_hash is None:
@@ -181,8 +209,10 @@ async def create_draft(name: str, email: str, body: str) -> Draft:
                 text(
                     """
                     INSERT INTO messages (name, email, body, status,
-                                          approval_token_hash, ip_hash, expires_at)
-                    VALUES (:name, :email, :body, 'pending', :token_hash, :ip_hash, :expires)
+                                          approval_token_hash, ip_hash, expires_at,
+                                          company, role, subject)
+                    VALUES (:name, :email, :body, 'pending', :token_hash, :ip_hash, :expires,
+                            :company, :role, :subject)
                     RETURNING id, created_at, expires_at
                     """
                 ),
@@ -193,6 +223,9 @@ async def create_draft(name: str, email: str, body: str) -> Draft:
                     "token_hash": token_hash,
                     "ip_hash": ip_hash,
                     "expires": datetime.now(UTC) + DRAFT_TTL,
+                    "company": company,
+                    "role": role,
+                    "subject": subject,
                 },
             )
         ).fetchone()
@@ -205,6 +238,9 @@ async def create_draft(name: str, email: str, body: str) -> Draft:
         created_at=row.created_at,
         expires_at=row.expires_at,
         token=token,
+        company=company,
+        role=role,
+        subject=subject,
     )
 
     # Logged without the token and without the message body. The token is the

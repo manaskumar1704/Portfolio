@@ -50,6 +50,9 @@ const REASONS: Record<number, SendFailure> = {
  * case, and the fallback below is what the visitor reads first: the likeliest
  * cause, stated, without confirming anything about a draft.
  */
+export const NETWORK_MESSAGE =
+  "The site could not be reached. Check the connection and try again.";
+
 const FALLBACKS: Record<SendFailure, string> = {
   refused:
     "That could not be approved. This usually means the connection changed — " +
@@ -59,7 +62,7 @@ const FALLBACKS: Record<SendFailure, string> = {
   expired: "That message has expired. Please write it again.",
   cap: "The owner is receiving a high volume of messages and has reached today's limit. Please try again tomorrow.",
   unavailable: "This site cannot send messages right now. Please try again later.",
-  network: "The site could not be reached. Check the connection and try again.",
+  network: NETWORK_MESSAGE,
 };
 
 export async function sendApproval(args: SendArgs): Promise<SendResult> {
@@ -96,15 +99,20 @@ export async function sendApproval(args: SendArgs): Promise<SendResult> {
  * The server's own explanation, when it gives one.
  *
  * The send route answers refusals with a `reason` written for exactly this
- * moment, so it is used verbatim. Only a legible string becomes the message;
- * anything else (a non-JSON body, a list-shaped validation `detail`) falls back
- * to local wording.
+ * moment, so it is used verbatim. The edit and cancel routes raise standard
+ * HTTP exceptions — same codes, same words, but under `detail` — so both keys
+ * are read, in that order. Only a legible string becomes the message; anything
+ * else (a non-JSON body, a list-shaped validation `detail`) falls back to local
+ * wording.
  */
-async function serverReason(response: Response): Promise<string | null> {
+export async function serverReason(response: Response): Promise<string | null> {
   try {
-    const payload = (await response.json()) as { reason?: unknown };
+    const payload = (await response.json()) as { reason?: unknown; detail?: unknown };
     if (typeof payload.reason === "string" && payload.reason.length > 0) {
       return payload.reason;
+    }
+    if (typeof payload.detail === "string" && payload.detail.length > 0) {
+      return payload.detail;
     }
   } catch {
     // Not JSON, or not a body. The fallback is better anyway.

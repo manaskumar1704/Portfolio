@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * The approve button. It renders the token; it never stores one.
+ * The approve button — and, since the draft lifecycle, the discard beside it.
+ * It renders the token; it never stores one.
  *
  * ## Why the token arrives as a function
  *
@@ -20,35 +21,50 @@
  * Reloading the page loses the token and therefore the ability to approve. That
  * is the intended failure mode: a capability that outlived the page would also
  * outlive the connection it was bound to.
+ *
+ * ## A settled card renders null, and why that is not abrupt
+ *
+ * The parent decides what a settled draft leaves behind: the chat clears the
+ * card, the form returns to its fields with a "Sent — thank you." line. A
+ * terminal view rendered here would never paint — both parents unmount in the
+ * same commit as the callback — so the states below are exactly three: busy
+ * (while the request runs), errored (the visitor reads why), and settled (null).
  */
 
 import { useState } from "react";
 
 import { sendApproval } from "@/lib/api/draft-approve";
+import { cancelDraft } from "@/lib/api/drafts";
 import type { Draft } from "@/lib/api/types";
+
+/** Shown when the token is gone but the card is still here. */
+const LOST_TOKEN =
+  "This approval link was lost when the page reloaded. Write the message again to get a new one.";
 
 export function DraftApproval({
   draft,
   /** Called once, then the token is gone. Returns the token or null. */
   readToken,
   onSent,
+  onDiscard,
 }: {
   draft: Draft;
   readToken: () => string | null;
   onSent: () => void;
+  /** Entered when a withdrawal is recorded; the parent decides what remains. */
+  onDiscard?: () => void;
 }) {
   const [working, setWorking] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [settled, setSettled] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
 
   const approve = async () => {
-    if (working || done) return;
+    if (working || discarding || settled) return;
 
     const token = readToken();
     if (!token) {
-      setError(
-        "This approval link was lost when the page reloaded. Write the message again to get a new one.",
-      );
+      setError(LOST_TOKEN);
       return;
     }
 
@@ -61,23 +77,37 @@ export function DraftApproval({
     setWorking(false);
 
     if (result.ok) {
-      setDone(true);
+      setSettled(true);
       onSent();
     } else {
       setError(result.message);
     }
   };
 
-  if (done) {
-    return (
-      <div className="draft draft-sent" role="status">
-        <span className="draft-tick" aria-hidden="true">
-          ✓
-        </span>
-        Sent to Manas.
-      </div>
-    );
-  }
+  const discard = async () => {
+    if (working || discarding || settled) return;
+
+    const token = readToken();
+    if (!token) {
+      setError(LOST_TOKEN);
+      return;
+    }
+
+    setDiscarding(true);
+    setError(null);
+
+    const result = await cancelDraft({ messageId: draft.id, token });
+    setDiscarding(false);
+
+    if (result.ok) {
+      setSettled(true);
+      onDiscard?.();
+    } else {
+      setError(result.message);
+    }
+  };
+
+  if (settled) return null;
 
   return (
     <div className="draft" role="group" aria-label="Message approval">
@@ -92,6 +122,17 @@ export function DraftApproval({
 
       <button type="button" className="draft-approve" onClick={approve} disabled={working}>
         {working ? "Sending…" : "Send this message"}
+      </button>
+
+      {/* Withdrawing is as first-class as approving: the row exists because the
+          draft is the visitor's to retract before it is the owner's to read. */}
+      <button
+        type="button"
+        className="draft-discard"
+        onClick={discard}
+        disabled={discarding}
+      >
+        {discarding ? "Withdrawing…" : "Discard"}
       </button>
 
       {error && (

@@ -446,8 +446,11 @@ async def test_the_approval_cap_is_enforced(client, monkeypatch) -> None:
 async def test_rate_limiting_happens_before_the_token_check(client) -> None:
     """Cost ordering. A flood of bad tokens must not reach the database.
 
-    Checked structurally because a wall-clock test cannot tell the difference:
-    the route must consult the limiter before it compares anything.
+    Checked structurally because a wall-clock test cannot tell the difference.
+    Since the lifecycle checkpoint, the token compare lives in the shared
+    `authorise` helper — so the ordering is asserted where it now actually
+    holds: every action-bearing route spends the limiter before it asks for the
+    capability check, and the helper does the compare in constant time.
     """
     import inspect
 
@@ -460,9 +463,17 @@ async def test_rate_limiting_happens_before_the_token_check(client) -> None:
     limiter_at = source.find("_approvals.check")
     compare_at = source.find("compare_digest")
 
-    assert limiter_at != -1, "the route must rate limit"
-    assert compare_at != -1, "the route must compare the token"
-    assert limiter_at < compare_at, "rate limiting must come first"
+    assert limiter_at != -1, "the routes must rate limit"
+    assert compare_at != -1, "the token must be compared with hmac, not =="
+
+    for name in ("send_message", "edit_message", "cancel_message"):
+        route_src = inspect.getsource(getattr(messages, name))
+        limited = route_src.find("_approvals.check")
+        checked = route_src.find("authorise")
+
+        assert limited != -1, f"{name} must rate limit"
+        assert checked != -1, f"{name} must run the capability check"
+        assert limited < checked, f"{name} must rate limit before checking the token"
 
 
 async def test_a_rate_limited_request_is_429_with_retry_after(client, monkeypatch) -> None:

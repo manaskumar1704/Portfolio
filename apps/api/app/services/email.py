@@ -109,10 +109,29 @@ def build_notification(
     visitor_name: str,
     visitor_email: str,
     body: str,
+    company: str | None = None,
+    role: str | None = None,
+    subject: str | None = None,
 ) -> Notification:
-    """Assemble the notification. Pure, so it is testable without a network."""
+    """Assemble the notification. Pure, so it is testable without a network.
+
+    `company`, `role` and `subject` are what the contact form collected and the
+    chat tool never sets. They go into the text header block, not into the mail
+    subject line: Resend's subject is the one field a visitor cannot see, and a
+    recruiter describing available work deserves it verbatim in the body.
+    """
     safe_name = clean_header_value(visitor_name, 200)
     safe_body = body.strip()[:MAX_BODY_CHARS]
+
+    context = [
+        (label, value)
+        for label, value in (
+            ("Company", company),
+            ("Role", role),
+            ("Subject", subject),
+        )
+        if value
+    ]
 
     subject = clean_header_value(f"Portfolio contact from {safe_name}", MAX_SUBJECT_CHARS)
 
@@ -120,7 +139,8 @@ def build_notification(
         f"A visitor sent a message through the portfolio site.\n\n"
         f"Name:    {safe_name}\n"
         f"Email:   {visitor_email}\n"
-        f"Reply to this email to reach them directly.\n\n"
+        + "".join(f"{label:<9}{clean_header_value(value, 120)}\n" for label, value in context)
+        + f"Reply to this email to reach them directly.\n\n"
         f"---\n{safe_body}\n"
     )
 
@@ -129,7 +149,11 @@ def build_notification(
         f"<p><strong>Name:</strong> {escape_html(safe_name)}<br>"
         f"<strong>Email:</strong> "
         f'<a href="mailto:{escape_html(visitor_email)}">{escape_html(visitor_email)}</a>'
-        "</p>"
+        + "".join(
+            f"<br><strong>{label}:</strong> {escape_html(clean_header_value(value, 120))}"
+            for label, value in context
+        )
+        + "</p>"
         "<p>Reply to this email to reach them directly.</p>"
         f"<hr><p>{escape_html(safe_body).replace(chr(10), '<br>')}</p>"
     )

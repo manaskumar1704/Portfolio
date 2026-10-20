@@ -138,7 +138,7 @@ export function useAgent() {
         setDraft({
           id: event.id,
           name: event.name,
-          email: event.email,
+          senderEmail: event.senderEmail,
           body: event.body,
           expiresAt: event.expiresAt,
         });
@@ -197,6 +197,22 @@ export function useAgent() {
       push("user", text);
       push("bot", command.message);
       setStatus("idle");
+      return;
+    }
+
+    if (command?.kind === "contact") {
+      push("user", text);
+      push("bot", command.message);
+      setStatus("idle");
+
+      // The reply is not the whole answer: the form opens where its panel is.
+      // One custom event across component trees — the contact section listens.
+      // Scrolling follows the visitor's motion preference, like everything
+      // else that moves on its own.
+      window.dispatchEvent(new Event("contact:open"));
+      document
+        .getElementById("contact")
+        ?.scrollIntoView({ behavior: window.matchMedia(REDUCED_MOTION_QUERY).matches ? "auto" : "smooth" });
       return;
     }
 
