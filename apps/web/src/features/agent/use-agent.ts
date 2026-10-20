@@ -4,9 +4,10 @@
  * The real agent: one turn of `POST /chat`, streamed.
  *
  * Replaces `use-scripted-agent`, which drove the keyword fixtures in
- * `lib/api/chat.ts`. The wire contract is in `lib/api/types.ts`; the transport is
- * in `lib/api/sse.ts`; the two pieces you are writing are `parse-sse.ts` and
- * `draft-approve.ts`.
+ * `lib/api/chat.ts`. The wire contract is in `lib/api/types.ts`; the transport
+ * is in `lib/api/sse.ts`; frames are parsed in `lib/api/parse-sse.ts`; approval
+ * is sent from `lib/api/draft-approve.ts`; the `/commands` table this hook
+ * consults before streaming anything is in `lib/api/commands.ts`.
  *
  * ## States
  *
@@ -34,9 +35,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { GREETING } from "./greeting";
+import { COMMANDS_HELP, resolveCommand } from "@/lib/api/commands";
 import { pingHealth, streamChat } from "@/lib/api/sse";
 import type { AgentStatus, ChatMessage, ChatEvent, Citation, Draft } from "@/lib/api/types";
 import { REDUCED_MOTION_QUERY } from "@/hooks/use-reduced-motion";
+
+/** What an unrecognised `/command` gets: the list of what exists, locally. */
+const UNKNOWN_REPLY = `That's not a command I know.\n\n${COMMANDS_HELP}`;
 
 export function useAgent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -167,8 +172,39 @@ export function useAgent() {
     const text = (raw ?? value).trim();
     if (!text || status === "thinking" || status === "streaming") return;
 
+    const command = resolveCommand(text);
     dismiss();
     if (raw === undefined) setValue("");
+
+    // Commands are answered where the answer already exists: in the browser.
+    // None of these reach the LLM, and so none of them can hallucinate about
+    // what the site can and cannot do while it is booting up.
+    if (command === "unknown") {
+      push("user", text);
+      push("bot", UNKNOWN_REPLY);
+      setStatus("idle");
+      return;
+    }
+
+    if (command?.kind === "clear") {
+      setMessages([]);
+      push("bot", GREETING);
+      setStatus("idle");
+      return;
+    }
+
+    if (command?.kind === "reply") {
+      push("user", text);
+      push("bot", command.message);
+      setStatus("idle");
+      return;
+    }
+
+    // A prompt alias shares the plain-question path. The bubble shows what is
+    // actually sent (the expansion, for a command) — what the model sees is
+    // what the visitor can read they asked.
+    const spoken = command ? command.message : text;
+    push("user", spoken);
 
     const reduced = window.matchMedia(REDUCED_MOTION_QUERY).matches;
     const history = messages
@@ -186,7 +222,7 @@ export function useAgent() {
     if (reduced) update(botId, { thinking: false });
 
     try {
-      for await (const event of streamChat({ message: text, history, signal: controller.signal })) {
+      for await (const event of streamChat({ message: spoken, history, signal: controller.signal })) {
         apply(event, botId);
       }
     } catch (error) {

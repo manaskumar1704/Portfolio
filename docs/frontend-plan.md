@@ -131,6 +131,23 @@ listing rows, the topbar and the landing shortcuts, all real `Link`s, so
 middle-click, keyboard and the Back button behave. `.md` stays in the URL so the
 URL, the listing and the file are one vocabulary with nothing to translate.
 
+## Slash commands are prompt aliases, not navigation (amended 2026-10-20)
+
+The stance above is about *navigation*, and it stands: nothing in the composer
+moves the browser. What was added in checkpoint 2 of `feature-plan.md` is
+different — a conversation-level shortcut table in `lib/api/commands.ts`:
+
+- `/skills`, `/projects`, `/resume` expand to their natural-language question
+  and go down the normal streaming path — same citations as typing it out.
+- `/contact` opens the local contact form. `/help`, `/clear` and unknown
+  commands are answered locally with no LLM call. `/compare-jd` is an honest
+  placeholder until the JobFinder service exists.
+
+This is not the `ls`/`cd`/`cat` registry from the removed pass: those faked a
+file system that the real fs routes now serve honestly, and they competed with
+links. These commands live in the conversation's own vocabulary and leave
+navigation untouched.
+
 An unknown path renders `error: no file at <path>` rather than a 404, which
 means it answers HTTP 200; `dynamicParams` is left at its default on purpose.
 

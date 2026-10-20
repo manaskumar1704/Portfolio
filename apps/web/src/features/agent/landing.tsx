@@ -115,7 +115,7 @@ export function Landing({ dismissed }: LandingProps) {
 
         <p className="max-w-[46ch] text-dim">
           Ask me anything in plain language — projects, resume, skills, or how
-          to reach Manas.
+          to reach Manas. Slash commands work too: type <span className="text-text">/help</span>.
         </p>
 
         <div
