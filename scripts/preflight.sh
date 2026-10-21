@@ -48,6 +48,30 @@ note()  { printf '  %s%s%s\n' "$DIM" "$1" "$OFF"; }
 
 cd "$API_DIR" || exit 1
 
+# The docker stages below interpolate shell variables. The Python stages
+# (report, tests, alembic, corpus census) load .env through Settings, but bash
+# never reads .env on its own. Sourcing .env directly does not work either:
+# the file carries a UTF-8 BOM and Neon URLs contain raw ? and & characters
+# that bash would interpret as operators. So the values the container needs
+# are exported through Settings itself, shlex-quoted so the eval is safe —
+# and no value is ever printed.
+ENV_VARS="$(uv run python - 2>/dev/null <<'PY'
+from shlex import quote
+
+from app.core.config import get_settings
+
+s = get_settings()
+for name in ("database_url", "ip_hash_salt", "llm_provider", "gemini_api_key",
+             "gemini_model", "groq_api_key", "groq_model"):
+    print(f"{name.upper()}={quote(str(getattr(s, name)))}")
+PY
+)"
+if [ -n "$ENV_VARS" ]; then
+  set -a
+  eval "$ENV_VARS"
+  set +a
+fi
+
 # ═══ 1. Environment report ═══════════════════════════════════════════════════
 #
 # Derived from the Settings class rather than a list in this file, so it cannot
@@ -76,6 +100,8 @@ WHY = {
     "EMBEDDING_DIMENSIONS": "must equal the vector column",
     "OMP_NUM_THREADS": "ONNX thread cap",
     "APP_ENV": "production turns on the boot checks",
+    "LANGFUSE_PUBLIC_KEY": "Langfuse tracing public key (optional)",
+    "LANGFUSE_SECRET_KEY": "Langfuse tracing secret key (optional)",
 }
 
 # Blocks in --prod. Mirrors Settings.production_problems().
@@ -83,7 +109,8 @@ BLOCKING = {
     "DATABASE_URL", "SYNC_DATABASE_URL", "GEMINI_API_KEY",
     "CORS_ORIGINS", "IP_HASH_SALT", "RESEND_API_KEY", "CONTACT_NOTIFY_EMAIL",
 }
-OPTIONAL = {"GROQ_API_KEY", "GITHUB_TOKEN", "GITHUB_OWNER", "GITHUB_PINS", "PROBE_TOKEN"}
+OPTIONAL = {"GROQ_API_KEY", "GITHUB_TOKEN", "GITHUB_OWNER", "GITHUB_PINS", "PROBE_TOKEN",
+            "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"}
 
 s = Settings()
 placeholder = str(s.ip_hash_salt).lower().startswith("change")
@@ -190,10 +217,20 @@ if [ "$FAST" -eq 0 ]; then
   # lifecycle smoke below spends three approval attempts against the same
   # in-process limiter bucket, and the default of 3 would 429 the third. The
   # production default in render.yaml stays untouched.
+  #
+  # Provider keys enter the container ONLY in --live mode. In the default mode
+  # nothing is ever sent to a provider: the app refuses to build an LLM client
+  # without a key (by design, see build_llm_client), so the SSE stage below
+  # skips rather than shipping a guaranteed failure.
+  CONTAINER_ENV=(-e "DATABASE_URL=${DATABASE_URL:-}" -e "IP_HASH_SALT=${IP_HASH_SALT:-}" -e "APPROVE_LIMIT_PER_HOUR=${APPROVE_LIMIT_PER_HOUR:-6}")
+  if [ "$LIVE" -eq 1 ]; then
+    CONTAINER_ENV+=(-e "APP_ENV=local" -e "LLM_PROVIDER=${LLM_PROVIDER:-gemini}" \
+      -e "GEMINI_API_KEY=${GEMINI_API_KEY:-}" -e "GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}" \
+      -e "GROQ_API_KEY=${GROQ_API_KEY:-}" -e "GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-120b}")
+  fi
   if docker run -d --name preflight-api \
        --memory=512m --cpus=0.1 -p "$PORT:8000" \
-       -e DATABASE_URL="${DATABASE_URL:-}" \
-       -e APPROVE_LIMIT_PER_HOUR="${APPROVE_LIMIT_PER_HOUR:-6}" \
+       "${CONTAINER_ENV[@]}" \
        portfolio-api:preflight >/dev/null 2>&1; then
 
     # The boot sweep runs alembic-free work against Postgres; give it room, but
@@ -239,10 +276,12 @@ if [ "$FAST" -eq 0 ]; then
       note "using your real provider key — this sends one question to the provider"
       SMOKE="What can you tell me about the person this portfolio describes?"
     else
-      note "stubbed provider: no key is used and nothing is sent anywhere"
-      SMOKE="Hello"
+      note "SKIPPED without --live: the app, by design, refuses to build an LLM"
+      note "client without a key, so there is no keyless stream to verify."
+      note "Run ./scripts/preflight.sh --live once to exercise the /chat path."
     fi
 
+    if [ "$LIVE" -eq 1 ]; then
     SSE_OUT=$(curl -sS -N -X POST "http://127.0.0.1:$PORT/chat" \
       -H 'Content-Type: application/json' \
       -d "{\"message\":\"$SMOKE\"}" 2>&1)
@@ -258,10 +297,11 @@ if [ "$FAST" -eq 0 ]; then
     else
       warn "response did not look like SSE"
     fi
+    fi
 
     # ═══ 8. Draft + approve shape (no mail is sent) ═══════════════════════════
     step "draft + approve contract"
-    if grep -q 'approval_token' <<< "$SSE_OUT"; then
+    if [ -n "${SSE_OUT:-}" ] && grep -q 'approval_token' <<< "$SSE_OUT"; then
       note "a draft event carried an approval token — check it is not in any log"
     fi
     RESP=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \

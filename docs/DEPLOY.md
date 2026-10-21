@@ -160,6 +160,9 @@ Put `IP_HASH_SALT` in `apps/api/.env`. Keep `PROBE_TOKEN` for step 12.
 | `GROQ_API_KEY` | https://console.groq.com/keys | Optional. Only used if Gemini rate-limits. |
 | `GITHUB_TOKEN` | https://github.com/settings/personal-access-tokens/new | See below. |
 | `RESEND_API_KEY` | https://resend.com/api-keys | "API Keys" → "Create API Key". |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | https://cloud.langfuse.com | **Optional.** Free tier, see below. |
+
+**Optional — Langfuse (tracing).** Traces every chat turn (durations, token usage, tool outcomes) without storing any message text. Sign up at https://cloud.langfuse.com (free tier), create a project named `portfolio`, then **Project Settings → API Keys** and copy both the public and the secret key. Leave both empty and tracing is a no-op — the app never boot-fails without it, and you can add them later without a code or schema change. Put them in `apps/api/.env` locally, and on Render in step 8 if you want them live from the first deploy. One project serves this portfolio only; any future service (for example a separate notes app) gets its own Langfuse project and keys.
 
 **For the GitHub token**, choose **Fine-grained**, not Classic. Set:
 
@@ -231,6 +234,8 @@ Render asks for the values it cannot know. For each marked `sync: false`:
 | `RESEND_API_KEY` | from step 5 |
 | `CONTACT_NOTIFY_EMAIL` | **your own email address** |
 | `IP_HASH_SALT` | from step 4 |
+| `LANGFUSE_PUBLIC_KEY` | from step 5, or leave blank (tracing off) |
+| `LANGFUSE_SECRET_KEY` | from step 5, or leave blank. Adding this later on the same tab is fine — no code change involved. |
 | `CORS_ORIGINS` | your Vercel URL. You do not have it yet — see step 15. **Put a placeholder like `https://placeholder.example` for now.** |
 
 **Leave blank:** `PROBE_TOKEN`, `TRUSTED_PROXY_CIDRS`. Step 12 needs the first

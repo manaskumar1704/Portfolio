@@ -43,6 +43,12 @@
       "skillPath": "skills/imagegen-frontend-web/SKILL.md",
       "computedHash": "27255c7c50181e58add156b2aa2bd5325285b85f04027e4c8b73742d98d7be0a"
     },
+    "langfuse": {
+      "source": "langfuse/skills",
+      "sourceType": "github",
+      "skillPath": "skills/langfuse/SKILL.md",
+      "computedHash": "fa0cd84e21e17dd502f6cd01b0a288ed88966a5f030c787a47ab522ba5c67cee"
+    },
     "neon": {
       "source": "neondatabase/agent-skills",
       "sourceType": "github",
