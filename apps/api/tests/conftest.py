@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
+from app.db import pool
 from app.main import app
 
 
@@ -26,3 +27,14 @@ def client() -> Iterator[TestClient]:
     """A client bound to the real app, with no outbound network available."""
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+async def ready_db():
+    """A live engine for the duration of one test."""
+    settings = get_settings()
+    await pool.setup(settings)
+    try:
+        yield pool
+    finally:
+        await pool.teardown()

@@ -15,7 +15,6 @@ import pytest
 from sqlalchemy import text
 
 from app.core.config import get_settings
-from app.db import pool
 
 pytestmark = [
     pytest.mark.integration,
@@ -24,17 +23,6 @@ pytestmark = [
         reason="DATABASE_URL not set; skipping tests that need a real database",
     ),
 ]
-
-
-@pytest.fixture
-async def ready_db():
-    """A live engine for the duration of one test."""
-    settings = get_settings()
-    await pool.setup(settings)
-    try:
-        yield pool
-    finally:
-        await pool.teardown()
 
 
 async def test_setup_is_idempotent(ready_db) -> None:

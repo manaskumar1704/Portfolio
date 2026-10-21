@@ -109,9 +109,7 @@ def _scores(premise: str, claim: str) -> np.ndarray:
 
 
 @pytest.mark.parametrize(("premise", "claim", "expected"), PAIRS)
-def test_the_nli_harness_scores_pairs_as_measured(
-    premise: str, claim: str, expected: int
-) -> None:
+def test_the_nli_harness_scores_pairs_as_measured(premise: str, claim: str, expected: int) -> None:
     logits = _scores(premise, claim)
 
     assert int(np.argmax(logits)) == expected, (

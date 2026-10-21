@@ -11,22 +11,12 @@ retrieving Lantern Analytics for a pasta recipe is failing.
 import pytest
 
 from app.core.config import get_settings
-from app.db import pool
 from app.services import rag
 
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(not get_settings().database_url, reason="DATABASE_URL not set"),
 ]
-
-
-@pytest.fixture
-async def ready_db():
-    await pool.setup(get_settings())
-    try:
-        yield pool
-    finally:
-        await pool.teardown()
 
 
 @pytest.fixture(scope="module")

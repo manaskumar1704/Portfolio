@@ -54,3 +54,35 @@ what was deliberately kept, with the reason. Nothing silently dropped.
 - **`chunks.token_count` and `origin_ip` columns** — dead since earlier
   relaxations. Next migration, deliberate data change with the enum/columns
   ones, not a code-only change.
+
+## Graph-informed re-audit (2026-10-21, after checkpoint 5)
+
+The knowledge graph (`scripts/graphify/pipeline.py`, full rebuild over the
+CP4+CP5 state) was used as the scan's index rather than a fresh manual crawl.
+Its structural signals: no import cycles; exactly one zero-inbound callable
+(after triage a false positive — a test double's method, invisible to the AST
+extractor); symbol duplication across files all attributable to convention
+(alembic `upgrade`/`downgrade`, `main` entry points), deliberate TS↔Python
+schema mirrors, or self-contained per-module test doubles.
+
+One real finding was applied:
+
+- **`ready_db` fixture, identical in five test files** — `test_pool`,
+  `test_rag`, `test_schema`, `test_contact_db`, `test_verify` each carried a
+  byte-identical `setup → yield pool → teardown` block. Now defined once in
+  `tests/conftest.py`; the four files that used `pool` nowhere else also lost
+  the import. Evals' two copies are kept: `evals/` is a separate root, and the
+  live-answers version genuinely differs (it binds `current_client_ip` and
+  wipes draft rows).
+
+Checked and left alone: the three `make_settings` helpers share only a name —
+email's mutates the settings singleton, client_ip's and github's construct
+`Settings` with different required fields; they are three fixtures, not
+copies. The CP0–3 dead-symbol list from the applied/kept table above (probe
+route leftovers, `mcp_auth_token`, `RetrievedChunk.distance`, the `Fs*`
+schemas, `chunks.token_count`, `origin_ip`, and the rest) remains owed to a
+dedicated cleanup checkpoint; the re-audit adds nothing to it and removes
+nothing from it.
+
+Resulting counts: api 391 passed, web 54 passed, evals 19 passed (non-slow),
+ruff clean.

@@ -19,15 +19,6 @@ pytestmark = [
 ]
 
 
-@pytest.fixture
-async def ready_db():
-    await pool.setup(get_settings())
-    try:
-        yield pool
-    finally:
-        await pool.teardown()
-
-
 def test_the_path_verifier_satisfies_the_protocol() -> None:
     """Type-level: the check that ships can sit behind the same seam as the
     future NLI service (ADR 0008)."""

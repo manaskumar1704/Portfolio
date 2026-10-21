@@ -34,15 +34,6 @@ IP = "203.0.113.10"
 OTHER_IP = "198.51.100.7"
 
 
-@pytest.fixture
-async def ready_db():
-    await pool.setup(get_settings())
-    try:
-        yield pool
-    finally:
-        await pool.teardown()
-
-
 @pytest.fixture(autouse=True)
 async def clean_table(ready_db):
     """The module owns the table while it runs: empty in, empty out.

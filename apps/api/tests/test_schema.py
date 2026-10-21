@@ -13,7 +13,6 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
-from app.db import pool
 
 pytestmark = [
     pytest.mark.integration,
@@ -25,15 +24,6 @@ pytestmark = [
 
 # A fixed unit vector keeps the insert deterministic without embedding anything.
 UNIT_VECTOR = [0.1] * 384
-
-
-@pytest.fixture
-async def ready_db():
-    await pool.setup(get_settings())
-    try:
-        yield pool
-    finally:
-        await pool.teardown()
 
 
 async def _purge(db, table: str, column: str, value: str) -> None:
