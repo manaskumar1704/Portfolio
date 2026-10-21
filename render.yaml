@@ -189,9 +189,8 @@ services:
       - key: PROBE_TOKEN
         value: ""
 
-      # Not in this file, on purpose: MCP_AUTH_TOKEN is phase 7 and the Langfuse
-      # host has a working default. Add them when the phase that uses them lands,
-      # so there is no unused configuration to keep in sync.
+      # The Langfuse host has a working default; add the keys when tracing
+      # comes online.
 
       - key: LANGFUSE_PUBLIC_KEY
         sync: false

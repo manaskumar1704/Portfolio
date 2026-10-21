@@ -132,9 +132,6 @@ class Settings(BaseSettings):
     # 404s. Delete the route and unset this once the list is populated.
     probe_token: str = ""
 
-    # Phase 7.
-    mcp_auth_token: str = ""
-
     # Phase 8. All three empty means tracing is a no-op, so local runs and CI
     # need no Langfuse account.
     langfuse_public_key: str = ""

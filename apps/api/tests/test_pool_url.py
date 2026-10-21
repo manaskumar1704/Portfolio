@@ -48,6 +48,21 @@ def test_channel_binding_only_url_still_works() -> None:
     )
 
 
+def test_default_psycopg_url_is_untouched() -> None:
+    """A plain `postgresql://` Neon URL selects psycopg, which is libpq.
+
+    Rewriting `sslmode` for it is what produced `invalid connection option
+    "ssl"` across every database-backed test on 2026-10-22. The scheme guard
+    in `normalize_async_url` is what keeps both drivers honest: this URL must
+    reach psycopg byte-for-byte as Neon hands it out.
+    """
+    psycopg_neon_url = (
+        "postgresql://user:pw@ep-x-pooler.r.aws.neon.tech/neondb"
+        "?sslmode=require&channel_binding=require"
+    )
+    assert normalize_async_url(psycopg_neon_url) == psycopg_neon_url
+
+
 # --- Engine settings ------------------------------------------------------
 #
 # These need no database, so they live here rather than in test_pool.py, which is

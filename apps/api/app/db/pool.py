@@ -1,8 +1,8 @@
 """The async engine, created once.
 
 Neon's pooled endpoint fronts Postgres with PgBouncer, so this pool holds a
-handful of asyncpg connections and Neon decides how many real backends that
-becomes. Pointing at the direct endpoint instead would consume one of the 97
+handful of psycopg async connections and Neon decides how many real backends
+that becomes. Pointing at the direct endpoint instead would consume one of the 97
 usable Postgres connections per process, which is how a free-tier project ends
 up refusing connections at inconvenient times.
 
@@ -12,8 +12,19 @@ suspension is dead. Without the ping, the first request after a quiet spell
 gets an `InterfaceError` instead of an answer.
 """
 
+import asyncio
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+
+if sys.platform == "win32":
+    # The async engine runs on psycopg, whose async driver refuses the
+    # ProactorEventLoop that Windows makes default. Anything that opens a
+    # connection with this module — uvicorn's dev server, the MCP server, the
+    # test suite — inherits the selector loop from here, so there is one
+    # place to set it and no caller can forget. Linux, the only platform
+    # this code ships on, never evaluates this branch.
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -32,25 +43,27 @@ _session_factory: async_sessionmaker | None = None
 
 
 def normalize_async_url(url: str) -> str:
-    """Adapt a Neon connection string to what asyncpg will accept.
+    """Adapt a connection string to whichever async driver the URL selects.
 
-    The Neon console hands out
-    `?sslmode=require&channel_binding=require`. Both spellings are wrong for the
-    async path, for the same reason: SQLAlchemy splits the query string into
-    keyword arguments and passes them straight to `asyncpg.connect()`, which
-    knows neither name and raises `TypeError: connect() got an unexpected
-    keyword argument`.
+    This is driver-dependent, and that is the whole point. `create_async_engine`
+    resolves a plain `postgresql://` URL to **psycopg**, which is a libpq
+    client: it wants `sslmode` exactly as Neon writes it and honours
+    `channel_binding` itself. Rewriting either raises `invalid connection
+    option "ssl"` — observed 2026-10-22 as "migrations healthy, every
+    database-backed test erroring at once". Only an explicit
+    `postgresql+asyncpg://` URL selects asyncpg, which spells TLS `ssl=` and
+    does not accept `channel_binding` — the case the rewrite was written for.
 
-    Raw asyncpg is happy with the original URL, because it parses the query
-    string itself. That is not available here, so the string is rewritten:
+    - asyncpg explicit scheme: `sslmode=require` becomes `ssl=require`, and
+      `channel_binding` is dropped, because passing it through is what breaks
+      the connection.
+    - psycopg (the default, and the driver this project ships on): the URL is
+      returned untouched.
 
-    - `sslmode=require` becomes `ssl=require`, which is asyncpg's spelling.
-    - `channel_binding` is dropped. asyncpg negotiates channel binding on its
-      own when TLS is required, so the instruction is redundant, and passing
-      it through is what breaks the connection.
-
-    The synchronous URL keeps both, because psycopg does understand them.
+    Alembic's sync URL is handled elsewhere and keeps both parameters.
     """
+    if "+asyncpg" not in url:
+        return url
     url = url.replace("sslmode=", "ssl=")
     return _drop_param(url, "channel_binding")
 
