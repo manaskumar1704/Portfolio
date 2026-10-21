@@ -1,0 +1,88 @@
+name: keep-alive
+
+# ── READ THIS BEFORE TRUSTING IT ─────────────────────────────────────────────
+#
+# GitHub disables scheduled workflows on PUBLIC repositories after 60 days of
+# inactivity. This repository is public, so this job WILL stop running, quietly,
+# at some point in the future.
+#
+# The failure is not loud. GitHub disables the schedule; the last successful run
+# stays green in the UI; and the site quietly starts cold-starting again. A
+# keep-alive that silently stops is worse than no keep-alive, because it is
+# indistinguishable from a working one.
+#
+# It is here anyway, for the first 60 days and for any window in which you are
+# actively pushing commits. The permanent answer is the external monitor in
+# docs/DEPLOY.md, step 16.
+#
+# `/health` and never `/ready`. `/ready` opens a Postgres connection, and this
+# job running every 8 minutes would hold Neon out of scale-to-zero, which is the
+# exact cost scale-to-zero exists to avoid.
+
+on:
+  schedule:
+    # Every 8 minutes. Render's free tier sleeps after 15, so this is comfortably
+    # inside the window. The minimum GitHub allows for scheduled workflows is 5.
+    - cron: "*/8 * * * *"
+
+  # So it can be triggered by hand while setting things up, before the schedule
+  # is trusted. Run it from the Actions tab -> this workflow -> Run workflow.
+  workflow_dispatch:
+
+concurrency:
+  group: keep-alive
+  # Do NOT queue. Ten pings queued behind a slow one is exactly the behaviour
+  # that makes a keep-alive useless.
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Refuse to run until the URL is set
+        # A blank variable would otherwise produce a request to
+        # "https://" with a 404 and a red X that looks like a broken service.
+        env:
+          RENDER_URL: ${{ vars.RENDER_URL }}
+        run: |
+          if [ -z "$RENDER_URL" ]; then
+            echo "::warning::RENDER_URL is not set."
+            echo "Set it in Settings -> Secrets and variables -> Actions ->"
+            echo "the Variables tab -> RENDER_URL. Nothing to do until then."
+            exit 0
+          fi
+          echo "Target: $RENDER_URL/health"
+
+      - name: Ping /health
+        env:
+          RENDER_URL: ${{ vars.RENDER_URL }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+                 --max-time 30 --retry 2 --retry-delay 5 \
+                 "$RENDER_URL/health" || echo "000")
+
+          if [ "$code" = "200" ]; then
+            echo "Awake."
+            exit 0
+          fi
+
+          # A sleeping free instance usually answers, just slowly. 502 is what
+          # Render returns while a cold start is in progress.
+          echo "Got HTTP $code."
+          if [ "$code" = "502" ] || [ "$code" = "000" ]; then
+            echo "Likely a cold start. Retrying once after 45s."
+            sleep 45
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+                   --max-time 60 "$RENDER_URL/health" || echo "000")
+            echo "Retry got HTTP $code."
+          fi
+
+          echo "::error::Keep-alive ping failed with HTTP $code after 2 attempts."
+          echo "Check the Render dashboard for deploy or health-check failures."
+          exit 1
+
+      - name: Record a wake for the summary
+        if: always()
+        run: echo "Checked at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"

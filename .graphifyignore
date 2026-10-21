@@ -1,0 +1,48 @@
+# graphify ignore — gitignore spec. Merged after .gitignore, so it can only
+# ever exclude MORE, never re-include. Scanned at the repo root.
+
+# Dependencies
+node_modules/
+bun.lock
+bun.lockb
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Build output
+.next/
+out/
+dist/
+build/
+.vercel/
+*.tsbuildinfo
+
+# Test / eval artifacts
+coverage/
+evals/results/
+evals/.cache/
+
+# Secrets — never extract
+.env
+.env.*
+!.env.example
+
+# Graphify's own output (self-reference; also in .gitignore)
+graphify-out/
+
+# Graphify pipeline tooling (self-reference; the graph describes the portfolio)
+scripts/graphify/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

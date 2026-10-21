@@ -1,0 +1,51 @@
+[project]
+name = "portfolio-api"
+version = "0.1.0"
+description = "FastAPI backend for the chat-first AI portfolio."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.34",
+  "pydantic>=2.10",
+  "pydantic-settings>=2.7",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30",
+  "alembic>=1.14",
+  "pgvector>=0.5.0",
+  "psycopg[binary]>=3.2",
+  "google-genai>=2.25",
+  "fastembed>=0.9.0",
+  "langfuse==5.0.3",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "httpx>=0.28",
+]
+
+# Not a distributable library: `app` is imported by path from the working
+# directory, so uvicorn runs with no install step.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `app` is imported by path, not installed, so tests need the project root on
+# sys.path. This is what `[tool.uv] package = false` implies.
+pythonpath = ["."]
+asyncio_mode = "auto"
+# `integration` needs a live database and `slow` loads the ONNX embedding model.
+# Both are excluded by default so `uv run pytest` is a few seconds on a machine
+# with no credentials and no model cache.
+#
+# `--continue-on-collection-errors` is what lets a red test file stay useful while
+# its implementation is being written. Without it, one unimportable module aborts
+# the whole run and you cannot see whether the 190 tests that do import still
+# pass. With it, the missing module is reported as a failure for that file alone.
+addopts = "-m 'not integration and not slow' --continue-on-collection-errors"
+markers = [
+  "integration: needs a real DATABASE_URL, skipped unless -m integration is passed",
+  "slow: loads the embedding model into memory, skipped unless -m slow is passed",
+]

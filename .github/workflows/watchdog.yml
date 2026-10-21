@@ -1,0 +1,119 @@
+name: watchdog
+
+# ── WATCHDOG, NOT KEEP-ALIVE ────────────────────────────────────────────────
+#
+# keep-alive.yml pings the service so it does not sleep.
+# This one checks that keep-alive is still *running*, because GitHub disables
+# scheduled workflows on public repositories after 60 days of inactivity and the
+# disablement is silent.
+#
+# The failure this exists to catch:
+#
+#   1. 60 days pass with no commits.
+#   2. GitHub disables both schedules.
+#   3. The service sleeps.
+#   4. The Actions tab still shows the last keep-alive run as green, so the
+#      dashboard looks fine.
+#   5. The site cold-starts on every visit and nobody notices until a recruiter
+#      mentions the site was slow.
+#
+# A watchdog that runs on the same schedule as the thing it watches cannot catch
+# the schedule dying. So this one is scheduled *less often* and is expected to be
+# replaced by an external monitor regardless — see docs/DEPLOY.md, step 16.
+
+on:
+  schedule:
+    # Weekly. Frequent enough that a dead site is noticed within a week; rare
+    # enough that it never approaches GitHub's own inactivity limit by being busy.
+    - cron: "17 6 * * 1"
+
+  # So it can be run by hand.
+  workflow_dispatch:
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: The service answers
+        env:
+          RENDER_URL: ${{ vars.RENDER_URL }}
+        run: |
+          if [ -z "$RENDER_URL" ]; then
+            echo "::warning::RENDER_URL is not set. Nothing to watch yet."
+            exit 0
+          fi
+
+          # Longer timeout than keep-alive on purpose. This one fires on a
+          # Monday morning after a weekend asleep, so it is usually paying for
+          # a full cold start, and a 90-second budget is the honest number for
+          # that rather than a failure.
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+                 --max-time 90 "$RENDER_URL/health" || echo "000")
+
+          if [ "$code" = "200" ]; then
+            echo "Service is awake."
+          else
+            echo "::error::Service returned HTTP $code after a weekend."
+            echo "A cold start over 90s means the embedding model is being"
+            echo "loaded at request time. Check it is still baked into the image."
+            exit 1
+          fi
+
+      - name: Keep-alive has run in the last 24 hours
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // If this check fails, the scheduled workflow has been disabled and
+            // nothing in this repository can tell you any more. That is the
+            // point: it is the last thing that can.
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'keep-alive.yml',
+              since,
+              per_page: 10,
+            });
+
+            const runs = data.workflow_runs || [];
+            const succeeded = runs.filter((r) => r.status === 'completed' && r.conclusion === 'success');
+
+            if (succeeded.length === 0) {
+              core.warning(
+                'No successful keep-alive run in the last 24 hours.\n\n' +
+                'If the repository is public, GitHub disables scheduled workflows ' +
+                'after 60 days of inactivity. This is almost certainly what happened.\n\n' +
+                'Fix: push any commit to main to restart the schedule, and set up ' +
+                'an external monitor (UptimeRobot or cron-job.org) so it survives ' +
+                'the next quiet period. See docs/DEPLOY.md, step 16.'
+              );
+            } else {
+              core.info(`keep-alive last succeeded: ${succeeded[0].created_at}`);
+            }
+
+      - name: Suggest an external monitor if none is configured
+        env:
+          EXTERNAL_MONITOR_URL: ${{ vars.EXTERNAL_MONITOR_URL }}
+        run: |
+          if [ -z "$EXTERNAL_MONITOR_URL" ]; then
+            echo "::warning::EXTERNAL_MONITOR_URL is not set."
+            echo ""
+            echo "This repository cannot keep the service awake indefinitely."
+            echo "GitHub disables scheduled workflows on public repositories after"
+            echo "60 days of inactivity, silently."
+            echo ""
+            echo "Add an external free monitor and record it here so this check"
+            echo "stops warning:"
+            echo "  UptimeRobot  https://uptimerobot.com   -> monitor GET \$RENDER_URL/health every 10 min"
+            echo "  cron-job.org https://cron-job.org       -> GET \$RENDER_URL/health every 10 min"
+            echo ""
+            echo "See docs/DEPLOY.md, step 16."
+          else
+            echo "External monitor recorded: $EXTERNAL_MONITOR_URL"
+          fi
