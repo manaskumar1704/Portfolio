@@ -76,4 +76,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=300s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell-wrapped the CMD. Render free has no preDeployCommand, so migrations
+# must run in the container's entrypoint before the server — through a shell,
+# because the `&&` is shell syntax: Render's dockerCommand override invoked the
+# string directly without one, and alembic choked on `&& uvicorn ...` as its
+# own arguments. `exec` hands the PID to uvicorn once migrations are done.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

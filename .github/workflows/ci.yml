@@ -47,7 +47,7 @@ jobs:
           bun-version: "1.4.2"
       - run: bun install --frozen-lockfile
       - run: bun test
-      - run: bunx tsc --noEmit
+      - run: bunx next typegen && bunx tsc --noEmit
       - run: bun run build
 
   api:
@@ -68,6 +68,10 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/portfolio
+      # Alembic needs a separate SYNC URL: migrations run DDL, which a
+      # transaction pooler (and Neon's pooled host) can misroute. Here the
+      # "direct" host is just the plain sync-driver URL for the CI Postgres.
+      SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/portfolio
       IP_HASH_SALT: ci-salt-placeholder-not-a-secret
     defaults:
       run:
@@ -112,10 +116,11 @@ jobs:
       - run: pip install uv
       - run: uv sync --frozen
         working-directory: apps/api
-      # The fixture loader resolves `corpus/_test` from the module's own
-      # location, not the working directory, so this is CWD-independent.
-      - run: uv run --project apps/api python -m ingest.fixtures
-        working-directory: .
+      # The loader and the pytest config are importable only from apps/api;
+      # run both from there. `ingest.fixtures` resolves corpus/_test from its
+      # own location, so it writes to whatever DATABASE_URL points at.
+      - run: uv run python -m ingest.fixtures
+        working-directory: apps/api
       - name: Cache the offline models (NLI, embeddings)
         uses: actions/cache@v4
         with:
@@ -124,5 +129,5 @@ jobs:
             ~/.cache/fastembed
           key: inference-models-v1
       - name: Run the golden-set evals
-        run: uv run --project apps/api pytest evals
-        working-directory: .
+        run: uv run pytest ../evals
+        working-directory: apps/api

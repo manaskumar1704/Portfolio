@@ -5,12 +5,11 @@
 # ## Migrations run in the container's CMD, not a preDeployCommand
 #
 # Render's pre-deploy command is documented as "available for paid web
-# services". This is a free service, so there isn't one.
-#
-# `dockerCommand` is the free tier's equivalent and overrides the Dockerfile's
-# CMD, which is why the uvicorn invocation is repeated here rather than left in
-# the image. One instance on free means there is no race between two containers
-# both running `alembic upgrade head`.
+# services". This is a free service, so there isn't one. The migrations run in
+# the image's own CMD (shell-wrapped: `sh -c "alembic upgrade head && exec
+# uvicorn ..."`), because Render's dockerCommand override passes the string to
+# the container without a shell — `alembic` received `&& uvicorn ...` as its
+# own arguments and exited 2.
 #
 # The ordering this relies on: the migration runs in the *new* container, so the
 # old one is still serving against the old schema while it happens. That is only
@@ -39,10 +38,9 @@ services:
     # apps/api as its context.
     rootDir: apps/api
 
-    # Overrides the Dockerfile CMD so migrations run first.
-    dockerCommand: >-
-      alembic upgrade head &&
-      uvicorn app.main:app --host 0.0.0.0 --port 8000
+    # Migrations run inside the image CMD (shell-wrapped, Dockerfile), because
+    # Render's free tier has no preDeployCommand. One instance means there is no
+    # race between two containers both running `alembic upgrade head`.
 
     # Does not touch the database, so Neon can still scale to zero.
     healthCheckPath: /health
