@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 import pgvector.sqlalchemy
 import sqlalchemy as sa
+from sqlalchemy import text
 
 from alembic import op
 
@@ -17,17 +18,45 @@ down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# Whitelists, never raw f-string interpolation of anything discovered. Both
+# entries below are extension or access-method names shipped by the databases
+# this migration targets: Neon (Lakebase Postgres) and a plain
+# `pgvector/pgvector` image, which is what CI runs.
+_VECTOR_EXTENSIONS = ("lakebase_vector", "vector")
+_ANN_ACCESS_METHODS = ("lakebase_ann", "hnsw")
+
+
+def _first_available(query: str, choices: tuple[str, ...], label: str) -> str:
+    """The first candidate the running server actually supports.
+
+    `lakebase_vector` installs pgvector plus the `lakebase_ann` index method
+    via a preloaded library; a stock pgvector image ships `vector` + `hnsw`
+    instead. Choosing from what `pg_available_extensions` / `pg_am` report
+    keeps this single migration honest on both, rather than forking a
+    Neon-only variant that CI could never execute.
+    """
+    bind = op.get_bind()
+    chosen = bind.execute(text(query), {"choices": list(choices)}).scalar()
+    if chosen not in choices:
+        # A server with neither (a bare Postgres, say) is not one this project
+        # can serve. Say so here rather than fail three tables later on the
+        # missing `vector` type.
+        raise RuntimeError(f"no supported {label} on this Postgres: tried {choices}")
+    return chosen
+
 
 def upgrade() -> None:
     # Must come first: the chunks table below declares a vector column, and
     # Postgres needs the type to exist before the CREATE TABLE runs.
-    #
-    # `lakebase_vector` is Neon's vector extension. It installs pgvector through
-    # CASCADE and adds the `lakebase_ann` index access method, which is what the
-    # index at the bottom uses. It relies on a preloaded library Neon enables by
-    # default; a project that customised its preload list will fail here, and
-    # the fix is in the Neon console rather than in this file.
-    op.execute("CREATE EXTENSION IF NOT EXISTS lakebase_vector CASCADE")
+    extension = _first_available(
+        "SELECT name FROM pg_available_extensions "
+        "WHERE name = ANY(:choices) "
+        "ORDER BY array_position(:choices, name) "
+        "LIMIT 1",
+        _VECTOR_EXTENSIONS,
+        "vector extension",
+    )
+    op.execute(f"CREATE EXTENSION IF NOT EXISTS {extension} CASCADE")
 
     op.create_table(
         "chunks",
@@ -59,16 +88,33 @@ def upgrade() -> None:
     # class and an operator that disagree is the classic silent-wrong-answer
     # bug, because the query still runs and just returns worse matches.
     #
-    # `lists = 'auto'` lets the index size its own IVF partition layout from the
-    # row count. On a corpus this small the planner prefers an exact scan anyway,
-    # so this index is insurance for growth, not a speedup today.
-    op.execute(
-        """
-        CREATE INDEX ix_chunks_embedding_ann ON chunks
-          USING lakebase_ann (embedding vector_cosine_ops)
-          WITH (build_mode = 'standard')
-        """
+    # On a corpus this small the planner prefers an exact scan anyway, so this
+    # index is insurance for growth, not a speedup today.
+    #
+    # The access method is whichever the just-created extension provides:
+    # `lakebase_ann` (with its explicit build_mode) on Neon, plain `hnsw`
+    # elsewhere. Same operator class, same purpose, different backend.
+    access_method = _first_available(
+        "SELECT amname FROM pg_am "
+        "WHERE amname = ANY(:choices) "
+        "ORDER BY array_position(:choices, amname) "
+        "LIMIT 1",
+        _ANN_ACCESS_METHODS,
+        "ANN access method",
     )
+    if access_method == "lakebase_ann":
+        op.execute(
+            """
+            CREATE INDEX ix_chunks_embedding_ann ON chunks
+              USING lakebase_ann (embedding vector_cosine_ops)
+              WITH (build_mode = 'standard')
+            """
+        )
+    else:
+        op.execute(
+            "CREATE INDEX ix_chunks_embedding_ann ON chunks "
+            "USING hnsw (embedding vector_cosine_ops)"
+        )
 
     op.create_table(
         "ingest_runs",
@@ -139,6 +185,6 @@ def downgrade() -> None:
     # The ANN index goes with its table; naming it separately would be a
     # dependency-ordered drop, and this is the only index on the table.
     op.drop_table("chunks")
-    # Deliberately not dropping lakebase_vector. Extensions are shared with
-    # anything else in this database, and dropping one is harder to undo than
-    # leaving it installed.
+    # Deliberately not dropping the vector extension (by whichever name it
+    # installed as). Extensions are shared with anything else in this database,
+    # and dropping one is harder to undo than leaving it installed.

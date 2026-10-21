@@ -106,6 +106,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # ponytail: rollback below d4e5f6a7b8c9 is unverified, and as written this
+    # function cannot run — it uses a `message_status_old` type it never
+    # creates, and casts enum -> enum, which Postgres forbids outright. The
+    # working pattern lives in d4e5f6a7b8c9's downgrade: drop
+    # ix_messages_pending first (its predicate pins the enum), then round-trip
+    # the column through text. Fix here when a real rollback must reach
+    # b2c3d4e5f6a7; CI and deploys never downgrade.
     op.execute("DROP INDEX IF EXISTS ix_messages_retained")
     op.drop_table("send_counters")
 

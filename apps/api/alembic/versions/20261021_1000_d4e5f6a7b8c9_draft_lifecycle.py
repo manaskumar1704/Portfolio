@@ -83,18 +83,28 @@ def downgrade() -> None:
     # data change, like c3d4e5f6a7b8 keeping a renamed type to avoid exactly this.
     op.execute("UPDATE messages SET status = 'expired' WHERE status = 'cancelled'")
 
-    op.execute("DROP TYPE IF EXISTS message_status_old")
-    op.execute(
-        "CREATE TYPE message_status_old AS ENUM ('pending','sending','sent','expired','failed')"
-    )
-    op.alter_column("messages", "status", server_default=None)
-    op.alter_column(
-        "messages",
-        "status",
-        existing_type=sa.Enum(*MESSAGE_STATUSES, name="message_status"),
-        type_=sa.Enum("pending", "sending", "sent", "expired", "failed", name="message_status_old"),
-        existing_nullable=False,
-    )
-    op.alter_column("messages", "status", server_default=sa.text("'pending'::message_status_old"))
+    # Text round-trip, not enum -> enum: Postgres permits NO cast between two
+    # distinct enum types, `USING status::other_enum` fails both ways, so the
+    # type swap goes through text — the varchar -> enum move is the same one
+    # c3d4e5f6a7b8's upgrade makes. The re-labelled values above are all legal
+    # labels of both tuples.
+    # ix_messages_pending (b2c3d4e5f6a7's upgrade) pins its predicate to the
+    # message_status type; altering the column revalidates it and dies there.
+    # Dropped around the swap and put back afterwards in b2c3's exact form.
+    op.execute("DROP INDEX IF EXISTS ix_messages_pending")
+    op.execute("ALTER TABLE messages ALTER COLUMN status DROP DEFAULT")
+    op.execute("ALTER TABLE messages ALTER COLUMN status TYPE text USING status::text")
     op.execute("DROP TYPE message_status")
-    op.execute("ALTER TYPE message_status_old RENAME TO message_status")
+    op.execute(
+        "CREATE TYPE message_status AS ENUM ('pending','sending','sent','expired','failed')"
+    )
+    op.execute(
+        "ALTER TABLE messages "
+        "ALTER COLUMN status TYPE message_status USING status::message_status"
+    )
+    op.execute(
+        "ALTER TABLE messages ALTER COLUMN status SET DEFAULT 'pending'::message_status"
+    )
+    op.execute(
+        "CREATE INDEX ix_messages_pending ON messages (created_at) WHERE status = 'pending'"
+    )

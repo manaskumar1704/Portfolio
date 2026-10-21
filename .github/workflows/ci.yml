@@ -104,6 +104,9 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/portfolio
+      # Alembic runs in this job too: the evals Postgres starts empty, and the
+      # fixture loader writes into unmigrated tables otherwise.
+      SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/portfolio
       IP_HASH_SALT: ci-salt-placeholder-not-a-secret
       # Empty on a fork: the live answer evals read this and skip. Set the
       # secret to grade the golden set against the real model on every push.
@@ -115,6 +118,9 @@ jobs:
           python-version: "3.12"
       - run: pip install uv
       - run: uv sync --frozen
+        working-directory: apps/api
+      # The evals Postgres starts empty; migrate before the loader writes.
+      - run: uv run alembic upgrade head
         working-directory: apps/api
       # The loader and the pytest config are importable only from apps/api;
       # run both from there. `ingest.fixtures` resolves corpus/_test from its
