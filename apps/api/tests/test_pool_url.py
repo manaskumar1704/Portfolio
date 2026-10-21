@@ -117,15 +117,16 @@ def test_no_query_string_is_untouched() -> None:
 
 
 def test_sync_url_is_left_for_psycopg() -> None:
-    """Only the async URL goes through this function.
+    """Only the async URL goes through the `+asyncpg` rewrite.
 
     Alembic's sync URL keeps `sslmode` and `channel_binding`, which psycopg
-    honours. Rewriting it would drop a security setting for no reason, so
-    `alembic/env.py` passes `settings.sync_database_url` through untouched.
+    honours; `alembic/env.py` passes `settings.sync_database_url` through
+    byte-for-byte. The rewrite only ever touches `+asyncpg` schemes, so a
+    Neon-shaped `postgresql://` URL survives it with its security parameters
+    intact — even if it were routed through the function by mistake.
     """
-    from app.core.config import get_settings
-
-    settings = get_settings()
-    if not settings.sync_database_url:
-        pytest.skip("SYNC_DATABASE_URL not set")
-    assert "sslmode=require" in settings.sync_database_url
+    sync_neon_url = (
+        "postgresql://user:pw@ep-x-pooler.r.aws.neon.tech/neondb"
+        "?sslmode=require&channel_binding=require"
+    )
+    assert normalize_async_url(sync_neon_url) == sync_neon_url

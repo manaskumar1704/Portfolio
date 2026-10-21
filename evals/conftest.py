@@ -18,12 +18,25 @@ sys.path.insert(0, str(_API_ROOT))
 def _load_env_file(path: Path) -> None:
     if not path.exists():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    # utf-8-sig, not utf-8: a BOM on the file's first line would otherwise
+    # become part of the first key's name.
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
+        # Mirror python-dotenv's parser, which pydantic-settings uses to load
+        # this same file for the API suite: a quoted value reads to its
+        # closing quote; a bare value ends at the first whitespace-preceded
+        # '#', so inline comments survive the API suite but must be dropped
+        # here too (DAILY_SEND_CAP=70   # ...100/day once failed int parsing).
+        v = value.strip()
+        if v[:1] in ('"', "'"):
+            end = v.find(v[0], 1)
+            v = v[1:end] if end > 0 else v[1:]
+        elif " #" in v:
+            v = v.split(" #", 1)[0]
+        os.environ.setdefault(key.strip(), v)
 
 
 _load_env_file(_API_ROOT / ".env")

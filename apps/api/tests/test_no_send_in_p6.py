@@ -94,13 +94,13 @@ def test_only_email_service_makes_an_outbound_mail_call() -> None:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore").lower()
         if "api.resend.com" in text:
-            offenders.append(str(path.relative_to(API_ROOT)))
+            offenders.append(path.relative_to(API_ROOT).as_posix())
 
     # `tests/` is excluded as a whole rather than by filename: it asserts exactly
     # one owner of the provider call, and the tests are where that call is
     # exercised. Exempting individual files would be a list that grows every time
     # a test touches Resend.
-    assert offenders == ["app\\services\\email.py"], offenders
+    assert offenders == ["app/services/email.py"], offenders
 
 
 def _all_routes() -> list:

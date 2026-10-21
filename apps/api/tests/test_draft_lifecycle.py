@@ -136,12 +136,18 @@ async def test_edit_changes_the_body_and_keeps_the_token(client, monkeypatch) ->
     one after the edit. `fake_send` stubs the provider — the send is the
     assertion vehicle, not the thing under test.
     """
+    from app.core.config import get_settings
     from app.api import messages as messages_api
 
     async def fake_send(notification, config, client=None):
         return "provider-test-id"
 
     monkeypatch.setattr(messages_api, "send_notification", fake_send)
+    # The route refuses a send before it reaches `send_notification` when email
+    # is unconfigured, and CI has no `.env`. Same stub as `configured` in
+    # test_send_route.py: only what the guard reads, no provider touched.
+    monkeypatch.setattr(get_settings(), "resend_api_key", "re_test_key")
+    monkeypatch.setattr(get_settings(), "contact_notify_email", "owner@example.com")
 
     created = (await _create(client)).json()
     message_id, token = created["id"], created["token"]

@@ -122,9 +122,9 @@ jobs:
       # The evals Postgres starts empty; migrate before the loader writes.
       - run: uv run alembic upgrade head
         working-directory: apps/api
-      # The loader and the pytest config are importable only from apps/api;
-      # run both from there. `ingest.fixtures` resolves corpus/_test from its
-      # own location, so it writes to whatever DATABASE_URL points at.
+      # The fixture loader must run from apps/api: `python -m ingest.fixtures`
+      # resolves the package by import path, which is why its cwd differs from
+      # the eval suite below (`ingest` is not importable from the repo root).
       - run: uv run python -m ingest.fixtures
         working-directory: apps/api
       - name: Cache the offline models (NLI, embeddings)
@@ -134,6 +134,12 @@ jobs:
             ~/.cache/huggingface
             ~/.cache/fastembed
           key: inference-models-v1
+      # The suite's own README documents this shape: run from the repo root
+      # with `--project apps/api supplying the venv, and evals/conftest.py
+      # putting apps/api on sys.path. Running it from apps/api instead (pytest
+      # ../evals) collects nothing — 2026-10-22 CI — because the evals
+      # directory has its own pytest.ini/rootdir that only behaves when invoked
+      # as its conftest expects.
       - name: Run the golden-set evals
-        run: uv run pytest ../evals
-        working-directory: apps/api
+        run: uv run --project apps/api pytest evals
+        working-directory: .
