@@ -43,6 +43,19 @@ import { REDUCED_MOTION_QUERY } from "@/hooks/use-reduced-motion";
 /** What an unrecognised `/command` gets: the list of what exists, locally. */
 const UNKNOWN_REPLY = `That's not a command I know.\n\n${COMMANDS_HELP}`;
 
+/**
+ * Slow-answer beats. A sleeping free-tier instance can hold the first answer
+ * for well over a minute, and a bare "thinking" bubble reads as a frozen page.
+ * Each beat only lands while the bubble still has no text, and the first real
+ * token replaces the last hint outright — see the delta branch in `apply()`.
+ */
+const SLOW_HINTS = [
+  "Still working — reading Manas's documents…",
+  "Taking longer than usual. The API may be waking up; the answer should arrive in the next minute.",
+] as const;
+const SLOW_HINT_DELAYS = [7_000, 20_000] as const;
+const IS_SLOW_HINT = new Set<string>(SLOW_HINTS);
+
 export function useAgent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<AgentStatus>("idle");
@@ -52,6 +65,8 @@ export function useAgent() {
 
   const nextId = useRef(0);
   const inFlight = useRef<AbortController | null>(null);
+  /** Timers of the turn in flight, so unmount and turn end both clear them. */
+  const hintTimers = useRef<number[]>([]);
 
   // The send capability. A ref, so it is not in React's tree, and nulled once
   // spent. See ADR 0006.
@@ -85,7 +100,10 @@ export function useAgent() {
 
   // A turn in flight must not outlive the component, or a React state update
   // lands on an unmounted tree and the console fills with warnings.
-  useEffect(() => () => inFlight.current?.abort(), []);
+  useEffect(() => () => {
+    inFlight.current?.abort();
+    for (const timer of hintTimers.current) clearTimeout(timer);
+  }, []);
 
   const update = (id: number, patch: Partial<ChatMessage>) =>
     setMessages((previous) =>
@@ -113,7 +131,13 @@ export function useAgent() {
         setMessages((previous) =>
           previous.map((message) =>
             message.id === botId
-              ? { ...message, text: message.text + event.text, thinking: false }
+              ? {
+                  ...message,
+                  // A visible slow-hint is not part of the answer: replace it,
+                  // never append to it.
+                  text: (IS_SLOW_HINT.has(message.text) ? "" : message.text) + event.text,
+                  thinking: false,
+                }
               : message,
           ),
         );
@@ -237,6 +261,20 @@ export function useAgent() {
     // appears when the first token lands.
     if (reduced) update(botId, { thinking: false });
 
+    // The slow beats. Replacement in the delta branch keeps a hint that fired
+    // mid-wait from leaking into the answer text.
+    hintTimers.current = SLOW_HINTS.map((text, index) =>
+      window.setTimeout(() => {
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === botId && !message.text
+              ? { ...message, text, thinking: false }
+              : message,
+          ),
+        );
+      }, SLOW_HINT_DELAYS[index]),
+    );
+
     try {
       for await (const event of streamChat({ message: spoken, history, signal: controller.signal })) {
         apply(event, botId);
@@ -250,6 +288,8 @@ export function useAgent() {
         });
       }
     } finally {
+      for (const timer of hintTimers.current) clearTimeout(timer);
+      hintTimers.current = [];
       inFlight.current = null;
       setStatus((current) => (current === "thinking" || current === "streaming" ? "done" : current));
     }
