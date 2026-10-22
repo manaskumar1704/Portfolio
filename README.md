@@ -16,6 +16,9 @@ before anything is sent.
 - **Tracing:** Langfuse, activated by environment variables, a no-op without
   them.
 
+Architecture map with every running service and tool, one line per box:
+[docs/architecture.md](docs/architecture.md).
+
 ## How a chat request flows
 
 1. The terminal-style UI streams a POST to the FastAPI `/chat` endpoint.
