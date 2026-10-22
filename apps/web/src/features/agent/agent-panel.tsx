@@ -20,7 +20,7 @@ import { useAgent } from "./use-agent";
  * which is the only place `status` is surfaced. Everything else is in the log.
  */
 export function AgentPanel() {
-  const { messages, value, busy, dismissed, status, draft, readToken, clearDraft, onValueChange, send, dismiss } =
+  const { messages, value, busy, dismissed, status, draft, readToken, sentDraft, clearDraft, onValueChange, send, dismiss } =
     useAgent();
   const isHome = usePathname() === "/";
 
@@ -64,7 +64,7 @@ export function AgentPanel() {
                 <DraftApproval
                   draft={draft}
                   readToken={readToken}
-                  onSent={clearDraft}
+                  onSent={sentDraft}
                   onDiscard={clearDraft}
                 />
               )}

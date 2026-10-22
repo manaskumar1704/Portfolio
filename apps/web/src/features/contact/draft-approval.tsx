@@ -24,8 +24,11 @@
  *
  * ## A settled card renders null, and why that is not abrupt
  *
- * The parent decides what a settled draft leaves behind: the chat clears the
- * card, the form returns to its fields with a "Sent — thank you." line. A
+ * The parent decides what a settled draft leaves behind: the chat leaves a
+ * one-line "Sent to Manas." confirmation, and the form returns to its fields
+</think><tool_call>edit<arg_key>newString</arg_key><arg_value> * The parent decides what a settled draft leaves behind: the chat leaves a
+ * one-line "Sent to Manas." confirmation, and the form returns to its fields
+ * with a "Sent — thank you." line. A
  * terminal view rendered here would never paint — both parents unmount in the
  * same commit as the callback — so the states below are exactly three: busy
  * (while the request runs), errored (the visitor reads why), and settled (null).

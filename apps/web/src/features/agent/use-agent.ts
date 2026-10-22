@@ -267,6 +267,14 @@ export function useAgent() {
       tokenRef.current = null;
       setDraft(null);
     },
+    // The approval path settles loudly: a confirmation line has to appear,
+    // because a card silently vanishing reads as "did my click do anything?".
+    // Discard keeps settling silently.
+    sentDraft: () => {
+      tokenRef.current = null;
+      setDraft(null);
+      push("bot", "Sent to Manas.");
+    },
     onValueChange: setValue,
     send,
     dismiss,
