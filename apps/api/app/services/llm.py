@@ -42,6 +42,7 @@ recruiters are already talking to a third-party model about public résumé data
 Logged as a decision rather than hidden.
 """
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
@@ -190,8 +191,6 @@ class GeminiClient:
         previous_interaction_id: str | None = None,
         tool_results: Sequence[ToolResult] = (),
     ) -> AsyncIterator[TurnResult]:
-        import asyncio
-
         def run() -> TurnResult:
             kwargs: dict[str, Any] = {
                 "model": self._model,
@@ -365,19 +364,115 @@ class GroqClient:
 # --- Factory ----------------------------------------------------------------
 
 
-def build_llm_client(settings: Settings) -> LLMClient:
-    """Return the configured provider adapter.
+class FailoverClient:
+    """One provider with the other one waiting behind it.
 
-    Raises rather than falling back silently. A fallback that hides a missing
-    API key produces answers from a different model than the one you think you
-    are evaluating, and phase 8's evals would quietly measure the wrong thing.
+    Up to `max_attempts` calls on each provider, in order: the primary until it
+    runs out of tries, then the fallback for the rest of the turn. Both providers
+    failing re-raises the last error, which the router already turns into the
+    ordinary SSE error frame — no new failure vocabulary for one adapter.
+
+    ## Retries are only safe because of the yields
+
+    A leg is retried from scratch, which is only correct while no turn has been
+    yielded to the caller yet: a retried leg that already emitted text would
+    duplicate it downstream. Both current adapters do all provider I/O before
+    their single end-of-leg yield, so this holds today — an adapter that ever
+    emits incremental yields must not be listed here.
+    """
+
+    def __init__(self, primary: LLMClient, fallback: LLMClient | None, max_attempts: int) -> None:
+        # `(label, client)` rows; a class name is the label. A skipped fallback
+        # collapses to a plain primary after construction.
+        self._rows: list[tuple[str, LLMClient]] = [("primary", primary)]
+        if fallback is not None:
+            self._rows.append(("fallback", fallback))
+        self._max_attempts = max_attempts
+
+    async def stream(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        tools: Sequence[ToolSpec],
+        system_instruction: str,
+        previous_interaction_id: str | None = None,
+        tool_results: Sequence[ToolResult] = (),
+    ) -> AsyncIterator[TurnResult]:
+        last: Exception | None = None
+        for label, client in self._rows:
+            for attempt in range(1, self._max_attempts + 1):
+                try:
+                    async for turn in client.stream(
+                        messages=messages,
+                        tools=tools,
+                        system_instruction=system_instruction,
+                        previous_interaction_id=previous_interaction_id,
+                        tool_results=tool_results,
+                    ):
+                        yield turn
+                    return
+                except (asyncio.CancelledError, GeneratorExit):
+                    # The client went away. Recovery is not for us to attempt.
+                    raise
+                except Exception as exc:
+                    # Broad on purpose: providers raise different exception
+                    # types, and the fallback exists for the whole lot. An
+                    # adapter bug would also flip over here, and that is the
+                    # accepted trade — the visitor keeps an answer path and the
+                    # log names every failure.
+                    last = exc
+                    log.warning(
+                        "llm %s attempt %d/%d failed (%s): %s",
+                        label,
+                        attempt,
+                        self._max_attempts,
+                        type(client).__name__,
+                        exc,
+                    )
+                    if attempt < self._max_attempts:
+                        await asyncio.sleep(0.5 * attempt)
+        assert last is not None  # at least one attempt always ran
+        raise last
+
+
+def _fallback(settings: Settings, provider: str) -> LLMClient | None:
+    """The other provider, when its credentials exist.
+
+    A missing fallback key is a logged shrug, not a boot failure: failing over
+    is glue, not a requirement, and the strict key check for the *configured*
+    provider is untouched — a silent primary would still evaluate the wrong
+    model.
+    """
+    other = "groq" if provider == "gemini" else "gemini"
+    if other == "groq":
+        if not settings.groq_api_key:
+            log.info("no groq fallback: GROQ_API_KEY empty")
+            return None
+        return GroqClient(settings)
+    if not settings.gemini_api_key:
+        log.info("no gemini fallback: GEMINI_API_KEY empty")
+        return None
+    return GeminiClient(settings)
+
+
+def build_llm_client(settings: Settings) -> LLMClient:
+    """Return the configured provider adapter, wrapped for failover.
+
+    Raises rather than falling back silently when the configured provider is
+    unknown, or when its key is missing where the config demands one: a fallback
+    that hides a missing API key produces answers from a different model than
+    the one you think you are evaluating, and phase 8's evals would quietly
+    measure the wrong thing.
     """
     provider = settings.llm_provider.lower()
     if provider == "gemini":
-        return GeminiClient(settings)
-    if provider == "groq":
-        return GroqClient(settings)
-    raise ValueError(f"unknown LLM_PROVIDER {settings.llm_provider!r}; expected gemini or groq")
+        primary: LLMClient = GeminiClient(settings)
+    elif provider == "groq":
+        primary = GroqClient(settings)
+    else:
+        raise ValueError(f"unknown LLM_PROVIDER {settings.llm_provider!r}; expected gemini or groq")
+
+    return FailoverClient(primary, _fallback(settings, provider), settings.llm_max_attempts)
 
 
 # --- Argument validation ----------------------------------------------------

@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     groq_model: str = "openai/gpt-oss-120b"
     groq_api_key: str = ""
 
+    # Attempts per provider before the turn switches to the other one. Both
+    # providers failing yields the router's ordinary error frame.
+    llm_max_attempts: int = Field(default=2, ge=1, le=5)
+
     # Phase 4. 384 dimensions, which is what the vector column is declared as.
     # Changing the model means re-running the ingest: rows written by two models
     # have no meaningful distance between them, and `ingest_runs` records which
