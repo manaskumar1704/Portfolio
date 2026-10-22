@@ -190,6 +190,26 @@ async def test_missing_fields_get_readable_defaults() -> None:
     assert info.stars == 0
 
 
+async def test_a_repo_without_a_readme_still_lists() -> None:
+    """GitHub answers 404 for `/readme` on a repo that has none.
+
+    Treating that like any other 404 hid every README-less project behind a
+    generic "not available", so it gets read as "no README" instead.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/readme"):
+            return httpx.Response(404)
+        return httpx.Response(200, json=repo_payload())
+
+    client = mock_client(handler)
+
+    info = await github.fetch_repo(f"{OWNER}/alpha", make_settings(), client)
+
+    assert info.name == f"{OWNER}/alpha"
+    assert info.readme_excerpt == ""
+
+
 async def test_a_foreign_repo_is_refused_before_any_request() -> None:
     """No HTTP call at all for a repo that is not ours."""
     called = False

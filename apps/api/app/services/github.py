@@ -309,7 +309,14 @@ async def fetch_repo(
     http = client or httpx.AsyncClient()
     try:
         payload = await _get(http, settings, f"/repos/{full_name}")
-        readme_payload = await _get(http, settings, f"/repos/{full_name}/readme")
+        try:
+            readme_payload = await _get(http, settings, f"/repos/{full_name}/readme")
+        except GitHubError as exc:
+            if exc.status != 404:
+                raise
+            # A project can simply have no README. That is not the same as
+            # "this repository is not on the allowlist"; the repo still lists.
+            readme_payload = {}
     finally:
         if owns_client:
             await http.aclose()
