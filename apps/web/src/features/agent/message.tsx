@@ -18,6 +18,18 @@ import { Citations } from "./citations";
 export function Message({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
 
+  // Console furniture (the API-health ping line): dim, same left gutter as the
+  // rows above so the column holds, no glyph, no markdown, not a conversation
+  // turn. Early return keeps the turn styling impossible to leak in.
+  if (message.role === "status") {
+    return (
+      <div className="animate-[msgin_260ms_var(--ease)_both] flex items-start gap-2.5 overflow-wrap-anywhere py-0.5">
+        <span aria-hidden="true" className="w-[1.1em] flex-none pt-[0.1em] text-center" />
+        <span className="min-w-0 flex-1 text-dim">{message.text}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex animate-[msgin_260ms_var(--ease)_both] items-start gap-2.5 overflow-wrap-anywhere">
       <span

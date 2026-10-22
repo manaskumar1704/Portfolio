@@ -37,7 +37,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { GREETING } from "./greeting";
 import { COMMANDS_HELP, resolveCommand } from "@/lib/api/commands";
 import { pingHealth, streamChat } from "@/lib/api/sse";
-import type { AgentStatus, ChatMessage, ChatEvent, Citation, Draft } from "@/lib/api/types";
+import type { AgentStatus, ChatRole, ChatMessage, ChatEvent, Citation, Draft } from "@/lib/api/types";
 import { REDUCED_MOTION_QUERY } from "@/hooks/use-reduced-motion";
 
 /** What an unrecognised `/command` gets: the list of what exists, locally. */
@@ -77,6 +77,12 @@ export function useAgent() {
     return tokenRef.current?.id === draft.id ? tokenRef.current.token : null;
   }, [draft]);
 
+  const push = (role: ChatRole, text: string, thinking = false) => {
+    const id = nextId.current++;
+    setMessages((previous) => [...previous, { id, role, text, thinking }]);
+    return id;
+  };
+
   // ── Warm on visit ─────────────────────────────────────────────────────
   //
   // Fire and forget. The result only decides whether the composer says
@@ -88,8 +94,13 @@ export function useAgent() {
     const controller = new AbortController();
     let alive = true;
 
-    pingHealth(controller.signal).then(({ ok }) => {
-      if (alive && !ok) setStatus((current) => (current === "idle" ? "waking" : current));
+    // The health signal, made visible. One line in the log: what was pinged,
+    // whether it answered, and how long it took — the terminal-native way to
+    // show "is the API working" without a poller or a badge that can go stale.
+    pingHealth(controller.signal).then(({ ok, coldStartMs }) => {
+      if (!alive) return;
+      push("status", ok ? `ping api … 200 · ${coldStartMs}ms` : "ping api … no answer yet");
+      if (!ok) setStatus((current) => (current === "idle" ? "waking" : current));
     });
 
     return () => {
@@ -109,12 +120,6 @@ export function useAgent() {
     setMessages((previous) =>
       previous.map((message) => (message.id === id ? { ...message, ...patch } : message)),
     );
-
-  const push = (role: "user" | "bot", text: string, thinking = false) => {
-    const id = nextId.current++;
-    setMessages((previous) => [...previous, { id, role, text, thinking }]);
-    return id;
-  };
 
   const dismiss = () => {
     if (dismissed) return;
@@ -247,8 +252,16 @@ export function useAgent() {
     push("user", spoken);
 
     const reduced = window.matchMedia(REDUCED_MOTION_QUERY).matches;
+    // Status rows are console furniture, not conversation: they never reach
+    // the model's history. The predicate narrows the role so the wire type
+    // (`"user" | "bot"`) holds without an assertion.
     const history = messages
-      .filter((message) => message.text.trim() && !message.thinking)
+      .filter(
+        (message): message is ChatMessage & { role: "user" | "bot" } =>
+          (message.role === "user" || message.role === "bot") &&
+          Boolean(message.text.trim()) &&
+          !message.thinking,
+      )
       .map(({ role, text: body }) => ({ role, text: body }));
 
     const controller = new AbortController();

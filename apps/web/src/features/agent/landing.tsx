@@ -71,7 +71,7 @@ export function Landing({ dismissed }: LandingProps) {
           manas <span className="font-normal text-faint">— agent</span>
         </span>
         <span className="ml-auto whitespace-nowrap rounded-full border border-border px-2.5 py-0.5 text-[0.78em] text-faint max-[640px]:hidden">
-          natural language · scripted demo
+          grounded · cites sources
         </span>
       </div>
 

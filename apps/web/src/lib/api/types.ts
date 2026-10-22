@@ -16,7 +16,13 @@ export type Contact = {
   note: string;
 };
 
-export type ChatRole = "user" | "bot";
+export type ChatRole = "user" | "bot" | "status";
+
+/**
+ * `status` is a local console line (the API health ping), not a turn of
+ * conversation: it must never reach the API's history — see the history
+ * filter in `useAgent.send`.
+ */
 
 export type ChatMessage = {
   id: number;
