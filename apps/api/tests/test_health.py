@@ -20,6 +20,11 @@ def test_health_is_ok(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_health_answers_head(client: TestClient) -> None:
+    """Uptime robots send HEAD by default; Starlette 1.7 no longer derives it from GET."""
+    assert client.head("/health").status_code == 200
+
+
 def test_health_does_not_touch_the_database(client: TestClient) -> None:
     """A configured-looking URL must not change what `/health` does.
 

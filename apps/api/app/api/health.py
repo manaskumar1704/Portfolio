@@ -17,13 +17,13 @@ router = APIRouter(tags=["health"])
 log = get_logger(__name__)
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 async def health() -> dict[str, str]:
     """Liveness. Deliberately touches nothing: no DB, no LLM, no network."""
     return {"status": "ok"}
 
 
-@router.get("/ready")
+@router.api_route("/ready", methods=["GET", "HEAD"])
 async def ready(response: Response) -> dict[str, str]:
     """Readiness. Opens a connection on purpose, unlike `/health`.
 
