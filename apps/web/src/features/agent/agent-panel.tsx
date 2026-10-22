@@ -6,6 +6,7 @@ import { PanelCap } from "@/components/ui/panel-cap";
 import { AgentBackground } from "@/features/background/agent-background";
 import { DraftApproval } from "@/features/contact/draft-approval";
 import { PrivacyNote } from "@/features/contact/privacy-note";
+import { COMMAND_LIST } from "@/lib/api/commands";
 import { Landing } from "./landing";
 import { Message } from "./message";
 import { useAgent } from "./use-agent";
@@ -76,6 +77,7 @@ export function AgentPanel() {
             <Composer
               value={value}
               busy={busy}
+              commands={COMMAND_LIST}
               placeholder={status === "waking" ? "waking the agent…" : undefined}
               onValueChange={onValueChange}
               onSubmit={() => void send()}

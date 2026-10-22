@@ -1,5 +1,9 @@
 "use client";
 
+import { useRef, useState } from "react";
+import type { CommandEntry } from "@/lib/api/commands";
+import { CommandMenu, filterCommands } from "./command-menu";
+
 /**
  * The up arrow, inlined. One glyph for the whole site: `lucide-react` ships a
  * tree of icons for what a single <svg> does natively, so the dependency went
@@ -17,6 +21,12 @@ type ComposerProps = {
    * silently swallows the first question.
    */
   placeholder?: string;
+  /**
+   * Entries for the `/` menu, like Claude Code: a bare `/` opens it, typing
+   * narrows it, arrows pick, Enter/Tab inserts, Esc closes. Empty or omitted,
+   * there is no menu.
+   */
+  commands?: CommandEntry[];
 };
 
 /** Prompt bar: `> input [↑]`. Turns amber while the agent is busy. */
@@ -26,7 +36,32 @@ export function Composer({
   onValueChange,
   onSubmit,
   placeholder = "Ask anything about Manas…",
+  commands = [],
 }: ComposerProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [active, setActive] = useState(0);
+  const [hidden, setHidden] = useState(false);
+
+  // A menu query is a leading slash with no word break yet — commands take no
+  // arguments, so "/skills " closes it and free text never opens one.
+  const query = value.startsWith("/") && !value.includes(" ") ? value : "";
+  const items = query ? filterCommands(commands, query) : [];
+  const open = query !== "" && items.length > 0 && !hidden;
+  const selected = Math.min(active, Math.max(0, items.length - 1));
+
+  /** Insert the picked command into the input; sending stays the user's move. */
+  const select = (name: string) => {
+    setHidden(false);
+    setActive(0);
+    onValueChange(`${name} `);
+    // The caret lands after the inserted space, which only exists once React
+    // commits the controlled value — hence trailing the commit by a frame.
+    requestAnimationFrame(() => {
+      const end = `${name} `.length;
+      inputRef.current?.setSelectionRange(end, end);
+    });
+  };
+
   const disabled = value.trim().length === 0 || busy;
 
   return (
@@ -35,8 +70,10 @@ export function Composer({
         e.preventDefault();
         if (!disabled) onSubmit();
       }}
-      className="mx-4 mb-4 mt-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-border-hi bg-inset px-3.5 py-2 transition-colors duration-[var(--dur)] ease-[var(--ease)] focus-within:border-accent"
+      className="relative mx-4 mb-4 mt-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-border-hi bg-inset px-3.5 py-2 transition-colors duration-[var(--dur)] ease-[var(--ease)] focus-within:border-accent"
     >
+      {open && <CommandMenu items={items} active={selected} onSelect={select} />}
+
       <span aria-hidden="true" className="flex-none text-accent">
         &gt;
       </span>
@@ -44,10 +81,40 @@ export function Composer({
         Ask anything about Manas
       </label>
       <input
+        ref={inputRef}
         id="agent-input"
         type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={open ? "agent-command-list" : undefined}
+        aria-activedescendant={open ? `agent-command-option-${selected}` : undefined}
+        aria-autocomplete="list"
         value={value}
-        onChange={(e) => onValueChange(e.target.value)}
+        onChange={(e) => {
+          setHidden(false);
+          setActive(0);
+          onValueChange(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (!open) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActive((current) => (current + 1) % items.length);
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((current) => (current - 1 + items.length) % items.length);
+          } else if (e.key === "Escape") {
+            // The typed text stays; the menu comes back on the next edit.
+            setHidden(true);
+          } else if (e.key === "Enter" || e.key === "Tab") {
+            // Insert, don't send: the two-step matches every terminal palette,
+            // and each command's send behaviour is already downstream.
+            e.preventDefault();
+            select(items[selected].name);
+          }
+        }}
+        onFocus={() => setHidden(false)}
+        onBlur={() => setHidden(true)}
         placeholder={placeholder}
         autoComplete="off"
         autoCapitalize="off"

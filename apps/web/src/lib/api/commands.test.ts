@@ -12,6 +12,7 @@ import { describe, expect, test } from "bun:test";
 
 import { COMMANDS_HELP, resolveCommand } from "./commands";
 import type { CommandOutcome } from "./commands";
+import { COMMAND_LIST } from "./commands";
 
 /** Expects `input` to resolve to kind `kind`, with real narrowing to match. */
 function outcome<K extends CommandOutcome["kind"]>(
@@ -73,6 +74,23 @@ describe("resolveCommand", () => {
     expect(outcome("/CLEAR now please", "clear")).toEqual({ kind: "clear" });
     expect(outcome("/HELP", "reply").message.length).toBeGreaterThan(0);
     expect(outcome("/Skills", "prompt").message.length).toBeGreaterThan(0);
+  });
+});
+
+describe("COMMAND_LIST", () => {
+  test("every advertised command resolves — the menu never shows a dead entry", () => {
+    for (const entry of COMMAND_LIST) {
+      const resolved = resolveCommand(entry.name);
+      expect(resolved === null || resolved === "unknown").toBe(false);
+    }
+  });
+
+  test("advertises exactly what the table contains", () => {
+    // Hard-coded on purpose: adding a table command must be a decision that
+    // updates both the menu and /help, in the open.
+    expect(COMMAND_LIST.map((entry) => entry.name).sort()).toEqual(
+      ["/clear", "/compare-jd", "/contact", "/help", "/projects", "/resume", "/skills"],
+    );
   });
 });
 

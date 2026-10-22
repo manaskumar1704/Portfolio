@@ -94,3 +94,24 @@ export function resolveCommand(input: string): CommandResolution {
   if (!word?.startsWith("/")) return null;
   return TABLE[word] ?? "unknown";
 }
+
+/**
+ * The composer's `/` menu, in display order. The same vocabulary as the table,
+ * one line per command — a menu entry that says nothing is a menu entry with
+ * something to hide, so every row here carries its own description.
+ *
+ * `commands.test.ts` pins the two invariants that keep this from rotting: every
+ * advertised command resolves through `resolveCommand`, and the menu never
+ * grows a command the table does not contain.
+ */
+export type CommandEntry = { name: string; description: string };
+
+export const COMMAND_LIST: CommandEntry[] = [
+  { name: "/skills", description: "his strongest skills, with sources" },
+  { name: "/projects", description: "the projects and what each one does" },
+  { name: "/resume", description: "recent roles and education" },
+  { name: "/contact", description: "where to write — opens the message form" },
+  { name: "/clear", description: "start the conversation over" },
+  { name: "/help", description: "the command list, in the conversation" },
+  { name: "/compare-jd", description: "coming soon — the service isn't wired yet" },
+];
