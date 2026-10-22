@@ -52,8 +52,9 @@ SEARCH_DESCRIPTION = (
     "Search the portfolio owner's résumé, projects, certifications, and profile "
     "snapshots. Use this for any question about their work history, skills, "
     "employers, dates, or projects. Returns passages with the source file each "
-    "came from, so you can cite them. Returns nothing when the corpus has no "
-    "match — in that case say you do not know rather than guessing."
+    "came from, so you can cite them. When a search misses, retry once with "
+    "fewer, more common words — one or two. Returns nothing when the corpus has "
+    "no match — in that case say you do not know rather than guessing."
 )
 
 _REGISTRY: dict[str, tuple[ToolSpec, Any, type[BaseModel]]] = {

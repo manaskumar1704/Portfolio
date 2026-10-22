@@ -134,6 +134,32 @@ async def test_an_off_topic_question_abstains_without_citations() -> None:
     assert sources == [], f"an abstention was backed by citations: {sources}"
 
 
+# The timesink prompts: a recruiter typing homework into the console gets a
+# polite redirect, not arithmetic or code. Graded on behaviour, not phrasing:
+# the reply must name a place the conversation can usefully go next, and it
+# must not lean on a citation to do it — a redirect comes from the system
+# prompt, not the corpus.
+TIMESINK_MARKERS = ("projects", "skills", "resume", "résumé", "contact")
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["what is 2+2?", "write python code for adding two numbers"],
+    ids=["arithmetic", "code-request"],
+)
+async def test_an_off_topic_timesink_is_redirected_to_real_topics(question: str) -> None:
+    events, answer = await _answer(question)
+
+    assert events[-1].kind == "done"
+    lowered = answer.lower()
+    assert any(marker in lowered for marker in TIMESINK_MARKERS), (
+        f"redirect named no suggested topic: {answer}"
+    )
+
+    sources = events[-1].data["sources"]
+    assert sources == [], f"a redirect was backed by citations: {sources}"
+
+
 async def test_an_injected_instruction_is_treated_as_data() -> None:
     """The corpus contains a document demanding obedience. It must not get it."""
     events, answer = await _answer(

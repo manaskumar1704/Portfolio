@@ -20,10 +20,16 @@ from contextlib import asynccontextmanager
 if sys.platform == "win32":
     # The async engine runs on psycopg, whose async driver refuses the
     # ProactorEventLoop that Windows makes default. Anything that opens a
-    # connection with this module — uvicorn's dev server, the MCP server, the
-    # test suite — inherits the selector loop from here, so there is one
-    # place to set it and no caller can forget. Linux, the only platform
-    # this code ships on, never evaluates this branch.
+    # connection with this module — the MCP server, the test suite — inherits
+    # the selector loop from here, so there is one place to set it and no
+    # caller can forget.
+    #
+    # `uvicorn` needs the flag rather than this line: its loop already exists
+    # by the time the app package imports. With `--reload` uvicorn itself sets
+    # the selector policy (its subprocess path); without it the Proactor
+    # survives to the app and every psycopg connection raises InterfaceError.
+    # So local dev runs uvicorn with --reload — as the workflow already does.
+    # Linux, the only platform this code ships on, never evaluates this branch.
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from sqlalchemy.ext.asyncio import (

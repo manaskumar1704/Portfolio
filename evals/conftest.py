@@ -35,7 +35,7 @@ def _load_env_file(path: Path) -> None:
             end = v.find(v[0], 1)
             v = v[1:end] if end > 0 else v[1:]
         elif " #" in v:
-            v = v.split(" #", 1)[0]
+            v = v.split(" #", 1)[0].strip()
         os.environ.setdefault(key.strip(), v)
 
 
