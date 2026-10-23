@@ -21,11 +21,11 @@ flowchart TB
   %% ── Remote ──
   NE["9 · Neon Lakebase Postgres<br>what: pooled + direct endpoints, pgvector(384)<br>does: chunks (23 from 6 corpus files — the current slate), drafts, tokens, send caps<br>why: storage that scales to zero on the free tier"]:::remote
   GM["10 · Gemini API<br>what: gemini-3.5-flash-lite via google-genai ≥ 2.25 interactions API<br>does: provider-side tool calling on a conversation the API remembers<br>why: primary — cheapest tier that does grounding properly"]:::remote
-  GQ["11 · Groq API<br>what: openai/gpt-oss-120b, OpenAI-compatible shapes<br>does: fallback legs on switch<br>why: survives Gemini 429s (local key currently dead — Render's works)"]:::remote
+  GQ["11 · Groq API<br>what: openai/gpt-oss-120b, OpenAI-compatible shapes<br>does: fallback legs on switch<br>why: survives Gemini 429s — key verified live (models list + real completion)"]:::remote
   RE["12 · Render free API — portfolio-api-59on.onrender.com<br>what: the deployed prod image of this same API<br>does: prod traffic; sleeps after 15 min → the waking cycle<br>why: free hosting; CORS still lacks localhost:3000 (dashboard fix pending)"]:::remote
   VE["13 · Vercel — manas-dev.vercel.app<br>what: deployed Next.js build<br>does: prod frontend, browser → Render direct fetch<br>why: prod home of the portfolio"]:::remote
   RS["14 · Resend<br>what: email provider<br>does: sends ONLY on the approved send-route call<br>why: email is never a tool — approval-gated by design"]:::remote
-  LF["15 · Langfuse<br>what: trace sink, optional via env<br>does: spans per leg/tool/turn<br>why: answer observability; silent 401s when unset — noise only"]:::remote
+  LF["15 · Langfuse<br>what: trace sink, optional via env<br>does: spans per leg/tool/turn<br>why: answer observability; key names must match LANGFUSE_HOST exactly"]:::remote
   GH["16 · GitHub API<br>what: public repo fetch<br>does: get_github_repo, allowlisted to GITHUB_OWNER<br>why: cited repo data without trusting the model"]:::remote
 
   %% ── Batch-time, not serving ──
@@ -53,7 +53,7 @@ flowchart TB
   VE -->|"NEXT_PUBLIC_API_URL"| RE
   RE -->|"prod DB + prod keys"| NE
   RE -->|"send route"| RS
-  LF <-.->|"OTLP spans (401s until keys exist)"| UV
+  LF <-.->|"OTLP spans per turn (verified landing)"| UV
   IN -->|"batch upserts"| NE
   EV -->|"measures TL + RR directly (no HTTP)"| TL
   MC -.->|"python imports"| RG
@@ -78,8 +78,13 @@ flowchart TB
   carry starve the lexical leg and score at most 0.0164 before the gate —
   the agent's tool description now nudges it to retry shorter instead of
   widening the gate; recalibration lives in `evals/` on the real corpus.
-- **Render CORS**: the production instance still lacks
-  `http://localhost:3000` in `CORS_ORIGINS`, so the local browser against the
-  live API is a Vercel-only story until the dashboard value is updated.
-- **Langfuse**: unset locally, so the OTLP exporter retries and logs 401s —
-  noise, no functional impact.
+- **Langfuse**: configured and verified locally — a turn exports its full
+  span tree (`chat-turn`, `provider-leg`, tool spans) to the Japan-region
+  cloud with no export errors. The historical 401 noise was never a key
+  problem: the local `.env` named the variable `LANGFUSE_BASE_URL`, but the
+  settings field is `langfuse_host`, so the override was silently ignored and
+  the SDK exported to the default EU region with Japan-region keys. Renamed
+  the variable; Render (if tracing is wanted there) must use `LANGFUSE_HOST`
+  for the same reason. Note the v2 observation endpoints we scripted against
+  are deprecated by Langfuse (removed Nov 16, 2026) — move to
+  `GET /api/public/v2/observations` in future tooling.
