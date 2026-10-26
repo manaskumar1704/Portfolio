@@ -98,7 +98,7 @@ The full service map with all 20 boxes is in [docs/architecture.md](docs/archite
 | Project | What it is | Relation to this portfolio |
 | --- | --- | --- |
 | [SyntaxAndSorcery](https://github.com/manaskumar1704/SyntaxAndSorcery) | Interactive arcade that teaches engineering concepts through small games | Listed as a project; reachable through the GitHub tool for live repo data |
-| [opencode-toolkit](https://github.com/manaskumar1704/opencode-toolkit) | TypeScript CLI and TUI for agent config, AST security scanning, and skill routing | Shares the tool-calling and MCP mindset; a planned MCP server here will import this repo's tool registry instead of copying it |
+| [opencode-toolkit](https://github.com/manaskumar1704/opencode-toolkit) | TypeScript CLI and TUI for agent config, AST security scanning, and skill routing | Shares the tool-calling and MCP mindset; Portfolio's own planned MCP server will import `apps/api` tools instead of copying them |
 | [ChainForge2.0](https://github.com/manaskumar1704/ChainForge2.0) | Public TypeScript project | Listed as another project under the same owner |
 | JobFinder (companion service) | Multi-service JD parser, matcher, and Typst resume engine | Idle connector: typed seam with a mocked implementation; live HTTP only when its contract and auth arrive |
 | ThirdBrain (companion service) | Hybrid GraphRAG workspace with a 3D citation canvas | Idle connector: typed seam with a mocked implementation; live HTTP only when its contract and auth arrive |
@@ -245,7 +245,7 @@ in `evals/README.md`.
 - Frontend on Vercel: deploys on every push. Changing
   `NEXT_PUBLIC_API_URL` on the dashboard triggers a rebuild that ships the
   new value; a plain redeploy would keep the old baked-in one.
-- CI on GitHub Actions: three gates (api, web, evals) on every push to main.
+- CI on GitHub Actions: three gates (api, web, evals) on push and pull requests.
 - UptimeRobot (external monitor): pings `/health`. Monitors default to HEAD,
   and health endpoints explicitly answer HEAD.
 - Keep-alive cron: throttled by GitHub's free plan; it supports the external
